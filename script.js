@@ -64,6 +64,7 @@ let playing = true;
 let won = false;
 let hoverBlockIndex = -1;
 let hoverRadioIndex = -1;
+let hideMiddleMelody = false;
 
 const canvas = document.getElementById("play-canvas");
 canvas.width = document.getElementById("canvas-container").clientWidth;
@@ -238,7 +239,7 @@ submitButton.addEventListener("click", (e) => {
 
   playing = false;
   // check asnwer
-
+  hideMiddleMelody = false;
   console.log(`ans index: ${ansIndex}, select index: ${selectedIndex}`);
   if (selectedIndex === ansIndex) {
     submitButton.textContent = "Next";
@@ -328,7 +329,9 @@ function drawPatterns(ctx) {
   if (selectedIndex !== -1) {
     const d = width * DISTANCE_RATIO * RADIO_WIDTH_RATIO;
     ctx.translate(
-      -0.5 * d + (d * (selectedIndex + 1)) / (numberOfInterpolations + 1),
+      -0.5 * d +
+        (d * ((!won && !playing ? ansIndex : selectedIndex) + 1)) /
+          (numberOfInterpolations + 1),
       0
     );
     ctx.fillStyle = COLORS[3];
@@ -351,7 +354,14 @@ function drawPatterns(ctx) {
     true
   );
   if (middleMelody) {
-    drawMelody(ctx, gw, gw, middleMelody, playingMelodyIndex === 2);
+    drawMelody(
+      ctx,
+      gw,
+      gw,
+      middleMelody,
+      playingMelodyIndex === 2,
+      hideMiddleMelody
+    );
   }
   ctx.restore();
 
@@ -411,13 +421,20 @@ function drawPatterns(ctx) {
     if (i === selectedIndex + 1) {
       ctx.beginPath();
       ctx.arc(x, y, u * 0.7, 0, 2 * Math.PI);
-      ctx.fillStyle = blendRGBColors(
-        COLORS[1],
-        COLORS[0],
-        i / numberOfInterpolations
-      );
+      ctx.fillStyle = COLORS[3];
+      if (!won && !playing) {
+        ctx.fillStyle = "#f00";
+      }
       ctx.fill();
     }
+
+    if (!won && !playing && i === ansIndex + 1) {
+      ctx.beginPath();
+      ctx.arc(x, y, u * 0.7, 0, 2 * Math.PI);
+      ctx.fillStyle = COLORS[3];
+      ctx.fill();
+    }
+
     ctx.beginPath();
     ctx.arc(x, y, u, 0, 2 * Math.PI);
     ctx.strokeStyle = blendRGBColors(
@@ -432,32 +449,44 @@ function drawPatterns(ctx) {
   ctx.restore();
 }
 
-function drawMelody(ctx, width, height, melody, drawProgress = false) {
+function drawMelody(
+  ctx,
+  width,
+  height,
+  melody,
+  drawProgress = false,
+  hide = false
+) {
   const { notes, totalQuantizedSteps } = melody;
   const wUnit = width / totalQuantizedSteps;
   const hUnit = height / 48;
-  for (let i = 0; i < notes.length; i++) {
-    const { pitch, quantizedStartStep, quantizedEndStep } = notes[i];
-    if (pitch < 96 && pitch > 48) {
-      ctx.save();
-      ctx.translate(quantizedStartStep * wUnit, (96 - pitch) * hUnit);
-      // ctx.fillStyle = COLORS[side];
-      // ctx.fillStyle = COLORS[2];
 
-      ctx.fillStyle = COLORS[3];
+  if (!hide) {
+    for (let i = 0; i < notes.length; i++) {
+      const { pitch, quantizedStartStep, quantizedEndStep } = notes[i];
+      if (pitch < 96 && pitch > 48) {
+        ctx.save();
+        ctx.translate(quantizedStartStep * wUnit, (96 - pitch) * hUnit);
+        // ctx.fillStyle = COLORS[side];
+        // ctx.fillStyle = COLORS[2];
 
-      if (drawProgress && part && part.state === "started" && part.progress) {
-        if (
-          part.progress > quantizedStartStep / totalQuantizedSteps &&
-          part.progress < quantizedEndStep / totalQuantizedSteps
-        ) {
-          ctx.fillStyle = "rgba(0, 150, 0)";
+        ctx.fillStyle = COLORS[3];
+
+        if (drawProgress && part && part.state === "started" && part.progress) {
+          if (
+            part.progress > quantizedStartStep / totalQuantizedSteps &&
+            part.progress < quantizedEndStep / totalQuantizedSteps
+          ) {
+            ctx.fillStyle = "rgba(0, 150, 0)";
+          }
         }
+        const w = (quantizedEndStep - quantizedStartStep) * wUnit * 0.85;
+        ctx.fillRect(0, 0, w, hUnit);
+        ctx.restore();
       }
-      const w = (quantizedEndStep - quantizedStartStep) * wUnit * 0.85;
-      ctx.fillRect(0, 0, w, hUnit);
-      ctx.restore();
     }
+  } else {
+    drawCross(ctx, width, height);
   }
 
   if (drawProgress && part && part.state === "started" && part.progress) {
@@ -470,6 +499,21 @@ function drawMelody(ctx, width, height, melody, drawProgress = false) {
     ctx.fillStyle = `rgba(0, 150, 0, ${alpha})`;
     ctx.fillRect(width * part.progress, 0, 5, height);
   }
+}
+
+function drawCross(ctx, width, height) {
+  const unit = width * 0.3;
+  ctx.save();
+  ctx.translate(width * 0.5, height * 0.5);
+  ctx.strokeStyle = COLORS[3];
+  ctx.beginPath();
+  ctx.moveTo(unit, unit);
+  ctx.lineTo(-unit, -unit);
+  ctx.moveTo(unit, -unit);
+  ctx.lineTo(-unit, unit);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function playMelody(melody) {
@@ -502,6 +546,9 @@ function updateScore(s) {
 
 function updateGame() {
   numberOfInterpolations = Math.floor(score / 5) + 3;
+  if (score % 5 === 3 || score % 5 === 4) {
+    hideMiddleMelody = true;
+  }
   // 1. update left and right melody
   // 2. wait for interpolations of left and right
   // 3. get a new ansIndex (random)
