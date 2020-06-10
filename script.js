@@ -33,6 +33,7 @@ const endingButtonDivElement = document.getElementById("layer-button-div");
 const loadingTextElement = document.getElementById("loading-div");
 const commentTextElement = document.getElementById("comment");
 const playAgainButton = document.getElementById("play-again-btn");
+const canvasHintDiv = document.getElementById("canvas-hint-div");
 
 let part;
 const synth = new Tone.PolySynth(3, Tone.Synth, {
@@ -205,6 +206,7 @@ document.getElementById("canvas-container").addEventListener("click", (e) => {
       }
       submitButton.textContent = "ok";
       submitButton.classList.remove("deactivated");
+      canvasHintDiv.style.display = "none";
       selectedIndex = Math.floor(
         ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) /
           (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
@@ -299,6 +301,7 @@ playAgainButton.addEventListener("click", (e) => {
   e.stopPropagation();
   submitButton.textContent = "ok";
   resultTextElement.style.display = "none";
+  // canvasHintDiv.style.display = "block";
 
   loadingTextElement.style.display = "block";
   endingButtonDivElement.style.display = "none";
