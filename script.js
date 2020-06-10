@@ -181,7 +181,7 @@ document
     }
   });
 document.getElementById("canvas-container").addEventListener("click", (e) => {
-  if (!playing || modelLoading) {
+  if (modelLoading) {
     return;
   }
 
@@ -200,6 +200,9 @@ document.getElementById("canvas-container").addEventListener("click", (e) => {
       playingMelodyIndex = 1;
       playMelody(rightMelody);
     } else {
+      if (!playing) {
+        return;
+      }
       selectedIndex = Math.floor(
         ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) /
           (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
@@ -399,10 +402,25 @@ function drawPatterns(ctx) {
   }
 
   // radio
+  const n = 20;
+  let dd = distance * RADIO_WIDTH_RATIO;
+  let d = dd / n;
+  ctx.save();
+  ctx.translate(-dd * 0.5, 0);
+  for (let i = 1; i < n; i++) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(d * i, 0, 1, 0, 2 * Math.PI);
+    ctx.fillStyle = COLORS[3];
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  d = dd / (numberOfInterpolations + 1);
   for (let i = 1; i < numberOfInterpolations + 1; i++) {
     const unit = gridWidth * 0.08;
-    const dd = distance * RADIO_WIDTH_RATIO;
-    const d = dd / (numberOfInterpolations + 1);
+
     const ratio = 1 + Math.sin(Date.now() * 0.005) * 0.1;
     let u = ratio * unit;
     // const x = -dd * 0.5 + d * i - u * 0.5;
@@ -418,6 +436,13 @@ function drawPatterns(ctx) {
       u = unit * 1.5;
     }
 
+    ctx.beginPath();
+    ctx.arc(x, y, u, 0, 2 * Math.PI);
+    ctx.strokeStyle = COLORS[3];
+    ctx.fillStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
     if (i === selectedIndex + 1) {
       ctx.beginPath();
       ctx.arc(x, y, u * 0.7, 0, 2 * Math.PI);
@@ -434,17 +459,9 @@ function drawPatterns(ctx) {
       ctx.fillStyle = COLORS[3];
       ctx.fill();
     }
-
-    ctx.beginPath();
-    ctx.arc(x, y, u, 0, 2 * Math.PI);
-    ctx.strokeStyle = blendRGBColors(
-      COLORS[1],
-      COLORS[0],
-      i / numberOfInterpolations
-    );
-    ctx.lineWidth = 2;
-    ctx.stroke();
   }
+
+  // dash line
 
   ctx.restore();
 }
