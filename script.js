@@ -224,15 +224,33 @@ submitButton.addEventListener("click", (e) => {
   resultTextElement.style.display = "none";
 
   if (!playing) {
-    submitButton.textContent = "ok";
     if (part) {
       part.stop();
     }
 
-    canvasLayer.style.display = "flex";
     if (!won) {
-      updateScore(0);
+      // updateScore(0);
+      canvasLayer.style.display = "flex";
+      loadingTextElement.style.display = "none";
+      endingButtonDivElement.style.display = "block";
+      document.getElementById("final-score").textContent = score;
+
+      if (score < 5) {
+        commentTextElement.textContent = "Practice takes time!";
+      } else if (score < 10) {
+        commentTextElement.textContent = "You know some latent!";
+      } else if (score < 15) {
+        commentTextElement.textContent = "You are almost master!";
+      } else if (score < 20) {
+        commentTextElement.textContent = "Latent master is you!";
+      } else {
+        commentTextElement.textContent = "Latent guru arise..";
+      }
+      return;
     }
+    // show loading canvas
+    submitButton.textContent = "ok";
+    canvasLayer.style.display = "flex";
     updateGame();
     return;
   }
@@ -254,26 +272,27 @@ submitButton.addEventListener("click", (e) => {
   } else {
     // lose
     // submitButton.classList.toggle("lose");
-    // resultTextElement.style.display = "block";
-    // resultTextElement.textContent = "Oh no, you lost!";
-    submitButton.textContent = "Oh no!";
+    resultTextElement.style.display = "block";
+    resultTextElement.textContent = "Oops!";
+    submitButton.textContent = "→";
     won = false;
-    canvasLayer.style.display = "flex";
-    loadingTextElement.style.display = "none";
-    endingButtonDivElement.style.display = "block";
-    document.getElementById("final-score").textContent = score;
 
-    if (score < 5) {
-      commentTextElement.textContent = "Practice takes time!";
-    } else if (score < 10) {
-      commentTextElement.textContent = "You know some latent!";
-    } else if (score < 15) {
-      commentTextElement.textContent = "You are almost master!";
-    } else if (score < 20) {
-      commentTextElement.textContent = "Latent master is you!";
-    } else {
-      commentTextElement.textContent = "Latent guru arise..";
-    }
+    // canvasLayer.style.display = "flex";
+    // loadingTextElement.style.display = "none";
+    // endingButtonDivElement.style.display = "block";
+    // document.getElementById("final-score").textContent = score;
+
+    // if (score < 5) {
+    //   commentTextElement.textContent = "Practice takes time!";
+    // } else if (score < 10) {
+    //   commentTextElement.textContent = "You know some latent!";
+    // } else if (score < 15) {
+    //   commentTextElement.textContent = "You are almost master!";
+    // } else if (score < 20) {
+    //   commentTextElement.textContent = "Latent master is you!";
+    // } else {
+    //   commentTextElement.textContent = "Latent guru arise..";
+    // }
   }
 });
 playAgainButton.addEventListener("click", (e) => {
@@ -587,8 +606,8 @@ function updateGame() {
     .then((sample) => {
       interpolations = sample.slice(1, sample.length - 1);
       middleMelody = interpolations[ansIndex];
-			canvasLayer.style.display = "none";
-			submitButton.textContent = "where it should be?";
+      canvasLayer.style.display = "none";
+      submitButton.textContent = "where it should be?";
       submitButton.classList.add("deactivated");
       playing = true;
     });
