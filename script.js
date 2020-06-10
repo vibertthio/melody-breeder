@@ -25,7 +25,7 @@ const DISTANCE_RATIO = isMobile ? 0.7 : 0.6;
 const RADIO_WIDTH_RATIO = isMobile ? 0.7 : 0.8;
 
 const playButtonTip = document.getElementById("play-btn-tip");
-const submitButton = document.getElementById("canvas-text-left");
+const submitButton = document.getElementById("submit-button");
 const resultTextElement = document.getElementById("result-text");
 const scoreElement = document.getElementById("play-btn");
 const canvasLayer = document.getElementById("panel-container");
@@ -203,6 +203,8 @@ document.getElementById("canvas-container").addEventListener("click", (e) => {
       if (!playing) {
         return;
       }
+      submitButton.textContent = "ok";
+      submitButton.classList.remove("deactivated");
       selectedIndex = Math.floor(
         ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) /
           (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
@@ -219,11 +221,10 @@ document.getElementById("canvas-container").addEventListener("click", (e) => {
 });
 submitButton.addEventListener("click", (e) => {
   e.stopPropagation();
-  submitButton.textContent = "ok";
   resultTextElement.style.display = "none";
 
   if (!playing) {
-    // 0. cover the canvas with loading splash
+    submitButton.textContent = "ok";
     if (part) {
       part.stop();
     }
@@ -586,7 +587,9 @@ function updateGame() {
     .then((sample) => {
       interpolations = sample.slice(1, sample.length - 1);
       middleMelody = interpolations[ansIndex];
-      canvasLayer.style.display = "none";
+			canvasLayer.style.display = "none";
+			submitButton.textContent = "where it should be?";
+      submitButton.classList.add("deactivated");
       playing = true;
     });
 }
