@@ -85,15 +85,16 @@ let modelLoading = true;
 const mvae = new music_vae.MusicVAE(
   "https://storage.googleapis.com/magentadata/js/checkpoints/music_vae/mel_2bar_small"
 );
-// mvae.initialize();
-mvae
-  .interpolate([leftMelody, rightMelody], numberOfInterpolations + 2)
-  .then((sample) => {
-    interpolations = sample.slice(1, sample.length - 1);
-    middleMelody = interpolations[ansIndex];
-    canvasLayer.style.display = "none";
-    modelLoading = false;
-  });
+mvae.initialize().then(() => {
+  mvae
+    .interpolate([leftMelody, rightMelody], numberOfInterpolations + 2)
+    .then((sample) => {
+      interpolations = sample.slice(1, sample.length - 1);
+      middleMelody = interpolations[ansIndex];
+      canvasLayer.style.display = "none";
+      modelLoading = false;
+    });
+});
 
 const piano = SampleLibrary.load({
   instruments: "piano",
