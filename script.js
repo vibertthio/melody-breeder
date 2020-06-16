@@ -1,13 +1,9 @@
 console.log("Vibert 2020-06-07");
-
-const worker = new Worker("worker.js");
-
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 if (isMobile) {
   console.log("[mobile]");
 }
-const { Part } = Tone;
-const BPM = 120;
+
 const COLORS = [
   // "rgb(255, 178, 230)",
   // "rgb(140, 255, 218)",
@@ -36,42 +32,22 @@ const commentTextElement = document.getElementById("comment");
 const playAgainButton = document.getElementById("play-again-btn");
 // const canvasHintDiv = document.getElementById("canvas-hint-div");
 
-let part;
-const synth = new Tone.PolySynth(3, Tone.Synth, {
-  oscillator: {
-    // "type": "fatsawtooth",
-    type: "triangle8",
-    // "type": "square",
-    count: 1,
-    spread: 30,
-  },
-  envelope: {
-    attack: 0.01,
-    decay: 0.1,
-    sustain: 0.5,
-    release: 0.4,
-    attackCurve: "exponential",
-  },
-}).toMaster();
-let leftMelody = presetMelodies["Twinkle"];
-let rightMelody = presetMelodies["Bounce"];
-let middleMelody;
-let interpolations;
-let numberOfInterpolations = 3;
-let ansIndex = 2;
-let selectedIndex = -1;
-let playingMelodyIndex = 0;
-let score = 0;
-let playing = true;
-let won = false;
-let hoverBlockIndex = -1;
-let hoverRadioIndex = -1;
-let hideMiddleMelody = false;
-
 const canvas = document.getElementById("play-canvas");
 canvas.width = document.getElementById("canvas-container").clientWidth;
 canvas.height = document.getElementById("canvas-container").clientHeight;
-const mousePosition = { x: 0, y: 0 };
+
+const worker = new Worker("worker.js");
+const { Part } = Tone;
+const BPM = 120;
+let part;
+let piano;
+let currentMelody = getListFromEvents(presetMelodies["Twinkle"]);
+let inspirationalMelodies = [
+  presetMelodies["Twinkle"],
+  presetMelodies["Arpeggiated"],
+  presetMelodies["Melody 1"],
+  presetMelodies["Melody 2"],
+];
 
 const audioContext = Tone.context;
 let editing = false;
@@ -84,39 +60,12 @@ let inputEvents;
 let pianoLoading = true;
 let modelLoading = true;
 
-worker.postMessage({ msg: "init" });
-worker.onmessage = (e) => {
-  console.log("[worker on message]");
-  console.log(e);
-  canvasLayer.style.display = "none";
-  modelLoading = false;
-};
-
-const piano = SampleLibrary.load({
-  instruments: "piano",
-});
-
-const playPianoNote = (time = 0, pitch = 55, length = 8, vol = 0.3) => {
-  // console.log("time", time);
-  // console.log("play currentTime", audioContext.now());
-  // console.log("pitch", pitch);
-  piano.triggerAttackRelease(Tone.Frequency(pitch, "midi"), length * 0.5, time, vol);
-};
-
-Tone.Buffer.on("load", () => {
-  // piano.sync();
-  const reverb = new Tone.JCReverb(0.5).toMaster();
-  piano.connect(reverb);
-  pianoLoading = false;
-  document.getElementById("splash-play-btn").classList.add("activated");
-  console.log("Samples loaded");
-});
-
-if (!canvas.getContext) {
-  console.log("<canvas> not supported.");
-}
-
 // events
+window.addEventListener("resize", () => {
+  const canvas = document.getElementById("play-canvas");
+  canvas.width = document.getElementById("canvas-container").clientWidth;
+  canvas.height = document.getElementById("canvas-container").clientHeight;
+});
 document.getElementById("splash-play-btn").addEventListener("click", async (e) => {
   document.getElementById("wrapper").style.visibility = "visible";
   const splash = document.getElementById("splash");
@@ -132,71 +81,22 @@ document.getElementById("splash-play-btn").addEventListener("click", async (e) =
   setup();
   draw();
 });
-window.addEventListener("resize", () => {
-  const canvas = document.getElementById("play-canvas");
-  canvas.width = document.getElementById("canvas-container").clientWidth;
-  canvas.height = document.getElementById("canvas-container").clientHeight;
-});
-
 document.getElementById("canvas-container").addEventListener("mousemove", (e) => {
   const { clientX, clientY } = e;
   const { width, height } = canvas;
   let canvasRect = canvas.getBoundingClientRect();
   const mouseX = clientX - canvasRect.left;
   const mouseY = clientY - canvasRect.top;
-  hoverRadioIndex = -1;
-  hoverBlockIndex = -1;
-  if (Math.abs(mouseY - height * LOWER_BAR_RATIO) < height * GRID_RATIO * 0.5) {
-    const limit = width * DISTANCE_RATIO * RADIO_WIDTH_RATIO * 0.5;
-    if (mouseX - width * 0.5 < -limit) {
-      hoverBlockIndex = 0;
-    } else if (mouseX - width * 0.5 > limit) {
-      hoverBlockIndex = 1;
-    } else {
-      hoverRadioIndex = Math.floor(
-        ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) / (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
-          numberOfInterpolations
-      );
-    }
-  } else if (Math.abs(mouseY - height * HIGHER_BAR_RATIO) < height * GRID_RATIO * 0.5) {
-    hoverBlockIndex = 2;
-  }
 });
 document.getElementById("canvas-container").addEventListener("click", (e) => {
   if (modelLoading) {
     return;
   }
-
   const { clientX, clientY } = e;
   const { width, height } = canvas;
   let canvasRect = canvas.getBoundingClientRect();
   const mouseX = clientX - canvasRect.left;
   const mouseY = clientY - canvasRect.top;
-
-  if (Math.abs(mouseY - height * LOWER_BAR_RATIO) < height * GRID_RATIO * 0.5) {
-    const limit = width * DISTANCE_RATIO * RADIO_WIDTH_RATIO * 0.5;
-    if (mouseX - width * 0.5 < -limit) {
-      playingMelodyIndex = 0;
-      playMelody(leftMelody);
-    } else if (mouseX - width * 0.5 > limit) {
-      playingMelodyIndex = 1;
-      playMelody(rightMelody);
-    } else {
-      if (!playing) {
-        return;
-      }
-      submitButton.textContent = "ok";
-      submitButton.classList.remove("deactivated");
-      // canvasHintDiv.style.display = "none";
-      selectedIndex = Math.floor(
-        ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) / (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
-          numberOfInterpolations
-      );
-    }
-  } else if (Math.abs(mouseY - height * HIGHER_BAR_RATIO) < height * GRID_RATIO * 0.5) {
-    playingMelodyIndex = 2;
-    playMelody(interpolations[ansIndex]);
-  }
 });
 submitButton.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -205,7 +105,7 @@ playAgainButton.addEventListener("click", (e) => {
   e.stopPropagation();
 });
 
-// methods
+// visual
 function setup() {
   Tone.Transport.start();
   Tone.Transport.bpm.value = BPM;
@@ -225,7 +125,6 @@ function draw() {
     draw();
   });
 }
-
 function drawPatterns(ctx) {
   const { width, height } = ctx.canvas;
   const distance = width * DISTANCE_RATIO;
@@ -244,7 +143,6 @@ function drawPatterns(ctx) {
 
   ctx.restore();
 }
-
 function drawMelody(ctx, width, height, melody, drawProgress = false, hide = false) {
   const { notes, totalQuantizedSteps } = melody;
   const wUnit = width / totalQuantizedSteps;
@@ -262,7 +160,10 @@ function drawMelody(ctx, width, height, melody, drawProgress = false, hide = fal
         ctx.fillStyle = COLORS[3];
 
         if (drawProgress && part && part.state === "started" && part.progress) {
-          if (part.progress > quantizedStartStep / totalQuantizedSteps && part.progress < quantizedEndStep / totalQuantizedSteps) {
+          if (
+            part.progress > quantizedStartStep / totalQuantizedSteps &&
+            part.progress < quantizedEndStep / totalQuantizedSteps
+          ) {
             ctx.fillStyle = "rgba(0, 150, 0)";
           }
         }
@@ -271,8 +172,6 @@ function drawMelody(ctx, width, height, melody, drawProgress = false, hide = fal
         ctx.restore();
       }
     }
-  } else {
-    drawCross(ctx, width, height);
   }
 
   if (drawProgress && part && part.state === "started" && part.progress) {
@@ -287,6 +186,35 @@ function drawMelody(ctx, width, height, melody, drawProgress = false, hide = fal
   }
 }
 
+// audio
+function initMusic() {
+  // sounds
+  piano = SampleLibrary.load({
+    instruments: "piano",
+  });
+  Tone.Buffer.on("load", () => {
+    const reverb = new Tone.JCReverb(0.5).toMaster();
+    piano.connect(reverb);
+    pianoLoading = false;
+    document.getElementById("splash-play-btn").classList.add("activated");
+    console.log("Samples loaded");
+  });
+
+  // magenta.js model
+  worker.postMessage({ msg: "init" });
+  worker.onmessage = (e) => {
+    console.log("[worker on message]");
+    console.log(e);
+    canvasLayer.style.display = "none";
+    modelLoading = false;
+  };
+}
+function playPianoNote(time = 0, pitch = 55, length = 8, vol = 0.3) {
+  // console.log("time", time);
+  // console.log("play currentTime", audioContext.now());
+  // console.log("pitch", pitch);
+  piano.triggerAttackRelease(Tone.Frequency(pitch, "midi"), length * 0.5, time, vol);
+}
 function playMelody(melody) {
   const notes = melody.notes.map((note) => {
     const s = note.quantizedStartStep;
@@ -309,3 +237,5 @@ function playMelody(melody) {
   part.start("+0.1");
   part.stop("+2m");
 }
+
+initMusic();
