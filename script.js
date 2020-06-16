@@ -1,20 +1,20 @@
-console.log("Vibert 2020-06-07");
+console.log("Vibert 2020-06-16 18:59");
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 if (isMobile) {
   console.log("[mobile]");
 }
 
 const COLORS = [
-  // "rgb(255, 178, 230)",
+  "rgb(55, 63, 255)",
+  "rgb(55, 63, 255)",
+  "rgba(255, 255, 232, 1)",
+  "rgb(55, 63, 255)",
+  "rgb(255, 178, 230)",
   // "rgb(140, 255, 218)",
   // "rgb(229, 117, 66)",
   // "rgb(230, 194, 41)",
   // "rgb(30, 150, 252)",
   // "rgb(162, 214, 249)",
-  "rgb(55, 63, 255)",
-  "rgb(55, 63, 255)",
-  "rgba(255, 255, 232, 1)",
-  "rgb(55, 63, 255)",
 ];
 const LOWER_BAR_RATIO = 0.6;
 const HIGHER_BAR_RATIO = 0.3;
@@ -22,9 +22,10 @@ const GRID_RATIO = isMobile ? 0.18 : 0.27;
 const DISTANCE_RATIO = isMobile ? 0.7 : 0.6;
 const RADIO_WIDTH_RATIO = isMobile ? 0.7 : 0.8;
 
-const playButtonTip = document.getElementById("play-btn-tip");
+const playButton = document.getElementById("play-btn");
 const submitButton = document.getElementById("submit-button");
 const resultTextElement = document.getElementById("result-text");
+const canvasContainer = document.getElementById("canvas-container");
 const canvasLayer = document.getElementById("panel-container");
 const endingButtonDivElement = document.getElementById("layer-button-div");
 const loadingTextElement = document.getElementById("loading-div");
@@ -32,14 +33,14 @@ const commentTextElement = document.getElementById("comment");
 const playAgainButton = document.getElementById("play-again-btn");
 // const canvasHintDiv = document.getElementById("canvas-hint-div");
 
-const canvas = document.getElementById("play-canvas");
-canvas.width = document.getElementById("canvas-container").clientWidth;
-canvas.height = document.getElementById("canvas-container").clientHeight;
+let canvas;
+let canvases = [];
 
 const worker = new Worker("worker.js");
-const { Part } = Tone;
+const { Part, Sequence } = Tone;
 const BPM = 120;
 let part;
+let seq;
 let piano;
 let currentMelody = getListFromEvents(presetMelodies["Twinkle"]);
 let inspirationalMelodies = [
@@ -50,7 +51,6 @@ let inspirationalMelodies = [
 ];
 
 const audioContext = Tone.context;
-let editing = false;
 let waitingForResponse = false;
 let currentUrlId;
 let pianoroll;
@@ -65,6 +65,13 @@ window.addEventListener("resize", () => {
   const canvas = document.getElementById("play-canvas");
   canvas.width = document.getElementById("canvas-container").clientWidth;
   canvas.height = document.getElementById("canvas-container").clientHeight;
+
+  for (let i = 0; i < 4; i++) {
+    canvases[i] = document.getElementById(`canvas-${i + 1}`);
+    let container = document.getElementById(`canvas-div-${i + 1}`);
+    canvases[i].width = container.clientWidth;
+    canvases[i].height = container.clientHeight;
+  }
 });
 document.getElementById("splash-play-btn").addEventListener("click", async (e) => {
   document.getElementById("wrapper").style.visibility = "visible";
@@ -81,14 +88,14 @@ document.getElementById("splash-play-btn").addEventListener("click", async (e) =
   setup();
   draw();
 });
-document.getElementById("canvas-container").addEventListener("mousemove", (e) => {
+canvasContainer.addEventListener("mousemove", (e) => {
   const { clientX, clientY } = e;
   const { width, height } = canvas;
   let canvasRect = canvas.getBoundingClientRect();
   const mouseX = clientX - canvasRect.left;
   const mouseY = clientY - canvasRect.top;
 });
-document.getElementById("canvas-container").addEventListener("click", (e) => {
+canvasContainer.addEventListener("click", (e) => {
   if (modelLoading) {
     return;
   }
@@ -98,20 +105,48 @@ document.getElementById("canvas-container").addEventListener("click", (e) => {
   const mouseX = clientX - canvasRect.left;
   const mouseY = clientY - canvasRect.top;
 });
-submitButton.addEventListener("click", (e) => {
+playButton.addEventListener("click", (e) => {
   e.stopPropagation();
+
+  if (seq.state === "started") {
+    playButton.textContent = "play";
+    seq.stop();
+  } else {
+    playButton.textContent = "stop";
+    seq.start("+0.01");
+  }
 });
 playAgainButton.addEventListener("click", (e) => {
   e.stopPropagation();
 });
 
 // visual
+function initCanvas() {
+  canvas = document.getElementById("play-canvas");
+  canvas.width = document.getElementById("canvas-container").clientWidth;
+  canvas.height = document.getElementById("canvas-container").clientHeight;
+
+  for (let i = 0; i < 4; i++) {
+    canvases[i] = document.getElementById(`canvas-${i + 1}`);
+    let container = document.getElementById(`canvas-div-${i + 1}`);
+    canvases[i].width = container.clientWidth;
+    canvases[i].height = container.clientHeight;
+  }
+}
 function setup() {
   Tone.Transport.start();
   Tone.Transport.bpm.value = BPM;
 }
 function draw() {
   // do things
+  drawMainCanvas();
+  drawInspirationsCanvas();
+
+  requestAnimationFrame(() => {
+    draw();
+  });
+}
+function drawMainCanvas() {
   let ctx = canvas.getContext("2d");
   const { width, height } = ctx.canvas;
 
@@ -119,11 +154,20 @@ function draw() {
   ctx.fillStyle = "rgba(255, 255, 255, 1)";
   ctx.fillRect(0, 0, width, height);
 
-  drawPatterns(ctx);
+  drawMainMelody(ctx, width, height);
+}
+function drawInspirationsCanvas() {
+  for (let i = 0; i < canvases.length; i++) {
+    const canvas = canvases[i];
+    let ctx = canvas.getContext("2d");
+    const { width, height } = ctx.canvas;
 
-  requestAnimationFrame(() => {
-    draw();
-  });
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "rgba(255, 255, 255, 1)";
+    ctx.fillRect(0, 0, width, height);
+
+    drawPatterns(ctx);
+  }
 }
 function drawPatterns(ctx) {
   const { width, height } = ctx.canvas;
@@ -138,51 +182,38 @@ function drawPatterns(ctx) {
   ctx.translate(width * 0.5, height * 0.5);
   ctx.fillStyle = COLORS[3];
   ctx.beginPath();
-  ctx.arc(0, 0, 50 * (1 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
+  ctx.arc(0, 0, width * 0.1 * (1 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
   ctx.fill();
 
   ctx.restore();
 }
-function drawMelody(ctx, width, height, melody, drawProgress = false, hide = false) {
-  const { notes, totalQuantizedSteps } = melody;
-  const wUnit = width / totalQuantizedSteps;
+function drawMainMelody(ctx, width, height) {
+  const wUnit = width / currentMelody.length;
   const hUnit = height / 48;
 
-  if (!hide) {
-    for (let i = 0; i < notes.length; i++) {
-      const { pitch, quantizedStartStep, quantizedEndStep } = notes[i];
-      if (pitch < 96 && pitch > 48) {
-        ctx.save();
-        ctx.translate(quantizedStartStep * wUnit, (96 - pitch) * hUnit);
-        // ctx.fillStyle = COLORS[side];
-        // ctx.fillStyle = COLORS[2];
-
-        ctx.fillStyle = COLORS[3];
-
-        if (drawProgress && part && part.state === "started" && part.progress) {
-          if (
-            part.progress > quantizedStartStep / totalQuantizedSteps &&
-            part.progress < quantizedEndStep / totalQuantizedSteps
-          ) {
-            ctx.fillStyle = "rgba(0, 150, 0)";
-          }
-        }
-        const w = (quantizedEndStep - quantizedStartStep) * wUnit * 0.85;
-        ctx.fillRect(0, 0, w, hUnit);
-        ctx.restore();
-      }
+  for (let i = 0; i < currentMelody.length; i++) {
+    const notes = currentMelody[i];
+    if (!notes) {
+      continue;
+    }
+    for (let j = 0; j < notes.length; j++) {
+      const { pitch, noteLength } = notes[j];
+      ctx.save();
+      ctx.translate(i * wUnit, (96 - pitch) * hUnit);
+      ctx.fillStyle = COLORS[3];
+      const w = noteLength * wUnit * 0.85;
+      ctx.fillRect(0, 0, w, hUnit);
+      ctx.restore();
     }
   }
 
-  if (drawProgress && part && part.state === "started" && part.progress) {
-    let alpha = 1;
-    if (part.progress < 0.2) {
-      alpha = Math.pow(part.progress / 0.2, 2);
-    } else if (part.progress > 0.8) {
-      alpha = Math.pow((1 - part.progress) / 0.2, 2);
-    }
-    ctx.fillStyle = `rgba(0, 150, 0, ${alpha})`;
-    ctx.fillRect(width * part.progress, 0, 5, height);
+  if (seq.state === "started") {
+    const p = seq.progress;
+    ctx.save();
+    ctx.translate(width * p, 0);
+    ctx.fillStyle = COLORS[4];
+    ctx.fillRect(0, 0, 10, height);
+    ctx.restore();
   }
 }
 
@@ -199,6 +230,21 @@ function initMusic() {
     document.getElementById("splash-play-btn").classList.add("activated");
     console.log("Samples loaded");
   });
+
+  seq = new Tone.Sequence(
+    (time, beat) => {
+      if (currentMelody[beat]) {
+        const notes = currentMelody[beat];
+        notes.forEach(({ pitch, noteLength }) => {
+          playPianoNote(time, pitch, noteLength, 0.3);
+        });
+      }
+    },
+    Array(32)
+      .fill(null)
+      .map((_, i) => i),
+    "8n"
+  );
 
   // magenta.js model
   worker.postMessage({ msg: "init" });
@@ -238,4 +284,5 @@ function playMelody(melody) {
   part.stop("+2m");
 }
 
+initCanvas();
 initMusic();

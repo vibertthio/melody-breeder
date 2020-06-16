@@ -1,7 +1,7 @@
+/* overall */
 * {
   font-family: "IBM Plex Mono", monospace;
 }
-
 html,
 body {
   width: 100%;
@@ -9,11 +9,9 @@ body {
   padding: 0;
   margin: 0;
 }
-
 body {
   font-family: helvetica, arial, sans-serif;
 }
-
 h1 {
   /* font-style: italic; */
   margin: 0 0 1rem 0;
@@ -27,7 +25,7 @@ h1 {
   visibility: hidden;
   margin: 0 auto;
   width: 90%;
-  max-width: 800px;
+  max-width: 750px;
   padding-top: 2vh;
   /* height: 100vh; */
 }
@@ -36,8 +34,6 @@ h1 {
   text-align: center;
   margin-bottom: 1.5rem;
 }
-
-/* edit splash */
 
 /* controls */
 #control-container {
@@ -156,7 +152,7 @@ h1 {
 #canvas-wrapper {
   box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
   width: "90%";
-  max-width: 760px;
+  max-width: 600px;
   background-color: #ccc;
   margin: 2rem auto;
   border-radius: 1rem;
@@ -301,41 +297,6 @@ h1 {
   color: #f00;
 }
 
-/* share */
-#share-container {
-  display: none;
-  position: relative;
-  /* flex-direction: row; */
-  /* align-items: center; */
-  max-width: 400px;
-  width: 90%;
-  justify-content: space-evenly;
-  margin: 2rem auto 2rem auto;
-  /* background-color: rgba(230, 230, 230, 1); */
-}
-#share-link-description {
-  text-align: center;
-  font-size: 0.8rem;
-  color: #373fff;
-  /* border-radius: 1rem; */
-  /* border: 1.5px solid #373fff; */
-}
-#share-link {
-  font-size: 0.8rem;
-  background: #fff;
-  border: 1.5px solid #373fff;
-  border-radius: 1rem;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  padding: 0.5rem 1rem;
-  color: #aaa;
-  transition: color 0.1s;
-}
-#share-link:hover {
-  color: #000;
-}
-
 /* splash */
 #splash {
   /* display: none; */
@@ -438,12 +399,6 @@ footer p {
   text-align: center;
 }
 
-#response-info span {
-  color: #373fff;
-  font-weight: 500;
-  text-decoration: underline;
-}
-
 #layer-button-div {
   display: none;
   text-align: center;
@@ -451,6 +406,37 @@ footer p {
 #layer-button-div h2 {
   color: #fff;
   font-size: 2rem;
+}
+
+/* canvases */
+#history-div {
+  position: absolute;
+  bottom: 1%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#canvases-div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  padding: 0;
+
+  width: 90%;
+  max-width: 600px;
+}
+.canvas-div {
+  width: 100px;
+  height: 100px;
+  background-color: #eee;
+
+  box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  border-radius: 1rem;
+}
+
+.melody-canvas {
+  border-radius: 1rem;
 }
 
 @media only screen and (max-width: 767px) {

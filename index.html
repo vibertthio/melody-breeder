@@ -47,7 +47,9 @@
         <!-- <h3></h3> -->
         <!-- <p id="warning">(Support desktop only.)</p> -->
         <p class="project-description">
-          (todo)
+          Create your own melody based on the inspirational ones. This interface help you navigate in the huge world of
+          melodies.
+          <span>History Slider</span> in the middle can you traverse all the melodies created during the navigation.
         </p>
         <button id="splash-play-btn">► play</button>
         <p>
@@ -67,7 +69,9 @@
             <a class="logo" href="https://www.sinica.edu.tw/" target="_blank"
               ><img src="./assets/magenta-logo.png" alt="sinica logo" height="21"
             /></a>
-            <a class="logo" href="http://ailabs.tw/" target="_blank"><img src="./assets/ailabs.png" alt="ailabs logo" height="21" /></a>
+            <a class="logo" href="http://ailabs.tw/" target="_blank"
+              ><img src="./assets/ailabs.png" alt="ailabs logo" height="21"
+            /></a>
             <!-- <a href="https://ailabs.tw/">Terms & Service</a> -->
           </p>
         </div>
@@ -78,27 +82,16 @@
       <header id="header">
         <h1>Melody Breeder</h1>
         <p id="response-info">
-          Create your own melody based on the inspirational ones. This interface help you navigate in the huge world of melodies.
-          <span>History Slider</span> in the middle can you traverse all the melodies created during the navigation.
+          Click on the grid below to change the melody.
         </p>
       </header>
+
       <div id="control-container">
         <div id="control-div">
           <button id="play-btn">
             play
           </button>
         </div>
-        <!-- <span id="control-seperator">|</span> -->
-        <!-- <div id="history-div">
-          <span id="history-span"
-            >history [<span id="history-current-index">1</span>/<span
-              id="history-length"
-              >1</span
-            >]</span
-          >
-          <button class="disabled" id="previous-btn">← previous</button>
-          <button class="disabled" id="next-btn">next →</button>
-        </div> -->
       </div>
 
       <div id="canvas-wrapper">
@@ -128,14 +121,19 @@
           </div>
 
           <canvas id="play-canvas"></canvas>
+
+          <div id="history-div">
+            <label for="volume">history</label>
+            <input type="range" id="volume" name="volume" min="0" max="11" />
+          </div>
         </div>
       </div>
 
-      <div id="share-container">
-        <p id="share-link-description">
-          Copy the link below to share your result
-        </p>
-        <p id="share-link">https://vibertthio.com/transformer?id=0</p>
+      <div id="canvases-div">
+        <div id="canvas-div-1" class="canvas-div"><canvas id="canvas-1" class="melody-canvas"></canvas></div>
+        <div id="canvas-div-2" class="canvas-div"><canvas id="canvas-2" class="melody-canvas"></canvas></div>
+        <div id="canvas-div-3" class="canvas-div"><canvas id="canvas-3" class="melody-canvas"></canvas></div>
+        <div id="canvas-div-4" class="canvas-div"><canvas id="canvas-4" class="melody-canvas"></canvas></div>
       </div>
 
       <footer>
