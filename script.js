@@ -1,5 +1,7 @@
 console.log("Vibert 2020-06-07");
 
+const worker = new Worker("worker.js");
+
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 if (isMobile) {
   console.log("[mobile]");
@@ -27,13 +29,12 @@ const RADIO_WIDTH_RATIO = isMobile ? 0.7 : 0.8;
 const playButtonTip = document.getElementById("play-btn-tip");
 const submitButton = document.getElementById("submit-button");
 const resultTextElement = document.getElementById("result-text");
-const scoreElement = document.getElementById("play-btn");
 const canvasLayer = document.getElementById("panel-container");
 const endingButtonDivElement = document.getElementById("layer-button-div");
 const loadingTextElement = document.getElementById("loading-div");
 const commentTextElement = document.getElementById("comment");
 const playAgainButton = document.getElementById("play-again-btn");
-const canvasHintDiv = document.getElementById("canvas-hint-div");
+// const canvasHintDiv = document.getElementById("canvas-hint-div");
 
 let part;
 const synth = new Tone.PolySynth(3, Tone.Synth, {
@@ -82,19 +83,14 @@ let inputPianoroll;
 let inputEvents;
 let pianoLoading = true;
 let modelLoading = true;
-const mvae = new music_vae.MusicVAE(
-  "https://storage.googleapis.com/magentadata/js/checkpoints/music_vae/mel_2bar_small"
-);
-mvae.initialize().then(() => {
-  mvae
-    .interpolate([leftMelody, rightMelody], numberOfInterpolations + 2)
-    .then((sample) => {
-      interpolations = sample.slice(1, sample.length - 1);
-      middleMelody = interpolations[ansIndex];
-      canvasLayer.style.display = "none";
-      modelLoading = false;
-    });
-});
+
+worker.postMessage({ msg: "init" });
+worker.onmessage = (e) => {
+  console.log("[worker on message]");
+  console.log(e);
+  canvasLayer.style.display = "none";
+  modelLoading = false;
+};
 
 const piano = SampleLibrary.load({
   instruments: "piano",
@@ -104,12 +100,7 @@ const playPianoNote = (time = 0, pitch = 55, length = 8, vol = 0.3) => {
   // console.log("time", time);
   // console.log("play currentTime", audioContext.now());
   // console.log("pitch", pitch);
-  piano.triggerAttackRelease(
-    Tone.Frequency(pitch, "midi"),
-    length * 0.5,
-    time,
-    vol
-  );
+  piano.triggerAttackRelease(Tone.Frequency(pitch, "midi"), length * 0.5, time, vol);
 };
 
 Tone.Buffer.on("load", () => {
@@ -126,62 +117,51 @@ if (!canvas.getContext) {
 }
 
 // events
-document
-  .getElementById("splash-play-btn")
-  .addEventListener("click", async (e) => {
-    document.getElementById("wrapper").style.visibility = "visible";
-    const splash = document.getElementById("splash");
-    splash.style.opacity = 0;
-    setTimeout(() => {
-      splash.style.display = "none";
-    }, 300);
-    if (audioContext.state == "suspended") {
-      console.log("audioContext.resume");
-      audioContext.resume();
-    }
+document.getElementById("splash-play-btn").addEventListener("click", async (e) => {
+  document.getElementById("wrapper").style.visibility = "visible";
+  const splash = document.getElementById("splash");
+  splash.style.opacity = 0;
+  setTimeout(() => {
+    splash.style.display = "none";
+  }, 300);
+  if (audioContext.state == "suspended") {
+    console.log("audioContext.resume");
+    audioContext.resume();
+  }
 
-    setup();
-    draw();
-  });
+  setup();
+  draw();
+});
 window.addEventListener("resize", () => {
   const canvas = document.getElementById("play-canvas");
   canvas.width = document.getElementById("canvas-container").clientWidth;
   canvas.height = document.getElementById("canvas-container").clientHeight;
 });
 
-document
-  .getElementById("canvas-container")
-  .addEventListener("mousemove", (e) => {
-    const { clientX, clientY } = e;
-    const { width, height } = canvas;
-    let canvasRect = canvas.getBoundingClientRect();
-    const mouseX = clientX - canvasRect.left;
-    const mouseY = clientY - canvasRect.top;
-    hoverRadioIndex = -1;
-    hoverBlockIndex = -1;
-    if (
-      Math.abs(mouseY - height * LOWER_BAR_RATIO) <
-      height * GRID_RATIO * 0.5
-    ) {
-      const limit = width * DISTANCE_RATIO * RADIO_WIDTH_RATIO * 0.5;
-      if (mouseX - width * 0.5 < -limit) {
-        hoverBlockIndex = 0;
-      } else if (mouseX - width * 0.5 > limit) {
-        hoverBlockIndex = 1;
-      } else {
-        hoverRadioIndex = Math.floor(
-          ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) /
-            (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
-            numberOfInterpolations
-        );
-      }
-    } else if (
-      Math.abs(mouseY - height * HIGHER_BAR_RATIO) <
-      height * GRID_RATIO * 0.5
-    ) {
-      hoverBlockIndex = 2;
+document.getElementById("canvas-container").addEventListener("mousemove", (e) => {
+  const { clientX, clientY } = e;
+  const { width, height } = canvas;
+  let canvasRect = canvas.getBoundingClientRect();
+  const mouseX = clientX - canvasRect.left;
+  const mouseY = clientY - canvasRect.top;
+  hoverRadioIndex = -1;
+  hoverBlockIndex = -1;
+  if (Math.abs(mouseY - height * LOWER_BAR_RATIO) < height * GRID_RATIO * 0.5) {
+    const limit = width * DISTANCE_RATIO * RADIO_WIDTH_RATIO * 0.5;
+    if (mouseX - width * 0.5 < -limit) {
+      hoverBlockIndex = 0;
+    } else if (mouseX - width * 0.5 > limit) {
+      hoverBlockIndex = 1;
+    } else {
+      hoverRadioIndex = Math.floor(
+        ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) / (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
+          numberOfInterpolations
+      );
     }
-  });
+  } else if (Math.abs(mouseY - height * HIGHER_BAR_RATIO) < height * GRID_RATIO * 0.5) {
+    hoverBlockIndex = 2;
+  }
+});
 document.getElementById("canvas-container").addEventListener("click", (e) => {
   if (modelLoading) {
     return;
@@ -207,110 +187,25 @@ document.getElementById("canvas-container").addEventListener("click", (e) => {
       }
       submitButton.textContent = "ok";
       submitButton.classList.remove("deactivated");
-      canvasHintDiv.style.display = "none";
+      // canvasHintDiv.style.display = "none";
       selectedIndex = Math.floor(
-        ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) /
-          (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
+        ((mouseX - width * (1 - DISTANCE_RATIO * RADIO_WIDTH_RATIO) * 0.5) / (width * DISTANCE_RATIO * RADIO_WIDTH_RATIO)) *
           numberOfInterpolations
       );
     }
-  } else if (
-    Math.abs(mouseY - height * HIGHER_BAR_RATIO) <
-    height * GRID_RATIO * 0.5
-  ) {
+  } else if (Math.abs(mouseY - height * HIGHER_BAR_RATIO) < height * GRID_RATIO * 0.5) {
     playingMelodyIndex = 2;
     playMelody(interpolations[ansIndex]);
   }
 });
 submitButton.addEventListener("click", (e) => {
   e.stopPropagation();
-  resultTextElement.style.display = "none";
-
-  if (!playing) {
-    if (part) {
-      part.stop();
-    }
-
-    if (!won) {
-      // updateScore(0);
-      canvasLayer.style.display = "flex";
-      loadingTextElement.style.display = "none";
-      endingButtonDivElement.style.display = "block";
-      document.getElementById("final-score").textContent = score;
-
-      if (score < 5) {
-        commentTextElement.textContent = "Practice takes time!";
-      } else if (score < 10) {
-        commentTextElement.textContent = "You know some latent!";
-      } else if (score < 15) {
-        commentTextElement.textContent = "You are almost master!";
-      } else if (score < 20) {
-        commentTextElement.textContent = "Latent master is you!";
-      } else {
-        commentTextElement.textContent = "Latent guru arise..";
-      }
-      return;
-    }
-    // show loading canvas
-    submitButton.textContent = "ok";
-    canvasLayer.style.display = "flex";
-    updateGame();
-    return;
-  }
-
-  if (selectedIndex === -1) {
-    return;
-  }
-
-  playing = false;
-  // check asnwer
-  hideMiddleMelody = false;
-  console.log(`ans index: ${ansIndex}, select index: ${selectedIndex}`);
-  if (selectedIndex === ansIndex) {
-    submitButton.textContent = "Next";
-    resultTextElement.style.display = "block";
-    resultTextElement.textContent = "Good Job!";
-    updateScore(score + 1);
-    won = true;
-  } else {
-    // lose
-    // submitButton.classList.toggle("lose");
-    resultTextElement.style.display = "block";
-    resultTextElement.textContent = "Oops!";
-    submitButton.textContent = "→";
-    won = false;
-
-    // canvasLayer.style.display = "flex";
-    // loadingTextElement.style.display = "none";
-    // endingButtonDivElement.style.display = "block";
-    // document.getElementById("final-score").textContent = score;
-
-    // if (score < 5) {
-    //   commentTextElement.textContent = "Practice takes time!";
-    // } else if (score < 10) {
-    //   commentTextElement.textContent = "You know some latent!";
-    // } else if (score < 15) {
-    //   commentTextElement.textContent = "You are almost master!";
-    // } else if (score < 20) {
-    //   commentTextElement.textContent = "Latent master is you!";
-    // } else {
-    //   commentTextElement.textContent = "Latent guru arise..";
-    // }
-  }
 });
 playAgainButton.addEventListener("click", (e) => {
   e.stopPropagation();
-  submitButton.textContent = "ok";
-  resultTextElement.style.display = "none";
-  // canvasHintDiv.style.display = "block";
-
-  loadingTextElement.style.display = "block";
-  endingButtonDivElement.style.display = "none";
-  updateScore(0);
-  updateGame();
 });
-// methods
 
+// methods
 function setup() {
   Tone.Transport.start();
   Tone.Transport.bpm.value = BPM;
@@ -341,163 +236,16 @@ function drawPatterns(ctx) {
   // ctx.lineWidth = 3;
   ctx.save();
 
-  ctx.translate(width * 0.5, height * LOWER_BAR_RATIO);
-
-  // interpolated melody
-  ctx.save();
-  ctx.strokeStyle = COLORS[3];
-  ctx.lineWidth = 3;
-  let large = hoverBlockIndex === 2 ? 1.05 : 1;
-  let gw = gridWidth * large;
-  ctx.translate(
-    -gw * 0.5,
-    -gw * 0.5 - height * (LOWER_BAR_RATIO - HIGHER_BAR_RATIO)
-  );
-  if (selectedIndex !== -1) {
-    const d = width * DISTANCE_RATIO * RADIO_WIDTH_RATIO;
-    ctx.translate(
-      -0.5 * d +
-        (d * ((!won && !playing ? ansIndex : selectedIndex) + 1)) /
-          (numberOfInterpolations + 1),
-      0
-    );
-    ctx.fillStyle = COLORS[3];
-    ctx.fillRect(gw * 0.5 - 2, gw + 8, 4, 25);
-    // ctx.translate(-0.5 * d, 0);
-  }
-  roundRect(
-    ctx,
-    0,
-    0,
-    gw,
-    gw,
-    {
-      tl: cornerRadius,
-      tr: cornerRadius,
-      bl: cornerRadius,
-      br: cornerRadius,
-    },
-    false,
-    true
-  );
-  if (middleMelody) {
-    drawMelody(
-      ctx,
-      gw,
-      gw,
-      middleMelody,
-      playingMelodyIndex === 2,
-      hideMiddleMelody
-    );
-  }
-  ctx.restore();
-
-  for (let side = 0; side < 2; side++) {
-    let large = hoverBlockIndex === side ? 1.05 : 1;
-    const gw = gridWidth * large;
-    const gridPositionX = -gw * 0.5 + distance * (side - 0.5);
-    const gridPositionY = -gw * 0.5;
-    ctx.save();
-    ctx.translate(gridPositionX, gridPositionY);
-    // ctx.fillStyle = COLORS[side];
-    ctx.strokeStyle = COLORS[3];
-    ctx.lineWidth = 3;
-    roundRect(
-      ctx,
-      0,
-      0,
-      gw,
-      gw,
-      {
-        tl: cornerRadius,
-        tr: cornerRadius,
-        bl: cornerRadius,
-        br: cornerRadius,
-      },
-      false,
-      true
-    );
-
-    // draw melody or drum patterns
-    const melody = side === 0 ? leftMelody : rightMelody;
-    drawMelody(ctx, gw, gw, melody, side === playingMelodyIndex);
-
-    ctx.restore();
-  }
-
-  // radio
-  const n = 20;
-  let dd = distance * RADIO_WIDTH_RATIO;
-  let d = dd / n;
-  ctx.save();
-  ctx.translate(-dd * 0.5, 0);
-  for (let i = 1; i < n; i++) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(d * i, 0, 1, 0, 2 * Math.PI);
-    ctx.fillStyle = COLORS[3];
-    ctx.fill();
-    ctx.restore();
-  }
-  ctx.restore();
-
-  d = dd / (numberOfInterpolations + 1);
-  for (let i = 1; i < numberOfInterpolations + 1; i++) {
-    const unit = gridWidth * 0.08;
-
-    const ratio = 1 + Math.sin(Date.now() * 0.005) * 0.1;
-    let u = ratio * unit;
-    // const x = -dd * 0.5 + d * i - u * 0.5;
-    // const y = -u * 0.5;
-
-    // ctx.fillStyle = blendRGBColors(COLORS[1], COLORS[0], i / nOfSquares);
-    // ctx.fillRect(x, y, unit * ratio, unit * ratio);
-
-    const x = -dd * 0.5 + d * i;
-    const y = 0;
-
-    if (i === hoverRadioIndex + 1) {
-      u = unit * 1.5;
-    }
-
-    ctx.beginPath();
-    ctx.arc(x, y, u, 0, 2 * Math.PI);
-    ctx.strokeStyle = COLORS[3];
-    ctx.fillStyle = "#fff";
-    ctx.lineWidth = 2;
-    ctx.fill();
-    ctx.stroke();
-    if (i === selectedIndex + 1) {
-      ctx.beginPath();
-      ctx.arc(x, y, u * 0.7, 0, 2 * Math.PI);
-      ctx.fillStyle = COLORS[3];
-      if (!won && !playing) {
-        ctx.fillStyle = "#f00";
-      }
-      ctx.fill();
-    }
-
-    if (!won && !playing && i === ansIndex + 1) {
-      ctx.beginPath();
-      ctx.arc(x, y, u * 0.7, 0, 2 * Math.PI);
-      ctx.fillStyle = COLORS[3];
-      ctx.fill();
-    }
-  }
-
-  // dash line
+  ctx.translate(width * 0.5, height * 0.5);
+  ctx.fillStyle = COLORS[3];
+  ctx.beginPath();
+  ctx.arc(0, 0, 50 * (1 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
+  ctx.fill();
 
   ctx.restore();
 }
 
-function drawMelody(
-  ctx,
-  width,
-  height,
-  melody,
-  drawProgress = false,
-  hide = false
-) {
+function drawMelody(ctx, width, height, melody, drawProgress = false, hide = false) {
   const { notes, totalQuantizedSteps } = melody;
   const wUnit = width / totalQuantizedSteps;
   const hUnit = height / 48;
@@ -514,10 +262,7 @@ function drawMelody(
         ctx.fillStyle = COLORS[3];
 
         if (drawProgress && part && part.state === "started" && part.progress) {
-          if (
-            part.progress > quantizedStartStep / totalQuantizedSteps &&
-            part.progress < quantizedEndStep / totalQuantizedSteps
-          ) {
+          if (part.progress > quantizedStartStep / totalQuantizedSteps && part.progress < quantizedEndStep / totalQuantizedSteps) {
             ctx.fillStyle = "rgba(0, 150, 0)";
           }
         }
@@ -542,21 +287,6 @@ function drawMelody(
   }
 }
 
-function drawCross(ctx, width, height) {
-  const unit = width * 0.3;
-  ctx.save();
-  ctx.translate(width * 0.5, height * 0.5);
-  ctx.strokeStyle = COLORS[3];
-  ctx.beginPath();
-  ctx.moveTo(unit, unit);
-  ctx.lineTo(-unit, -unit);
-  ctx.moveTo(unit, -unit);
-  ctx.lineTo(-unit, unit);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
 function playMelody(melody) {
   const notes = melody.notes.map((note) => {
     const s = note.quantizedStartStep;
@@ -578,41 +308,4 @@ function playMelody(melody) {
   part.loopEnd = "2:0:0";
   part.start("+0.1");
   part.stop("+2m");
-}
-
-function updateScore(s) {
-  score = s;
-  scoreElement.textContent = `score: ${score}`;
-}
-
-function updateGame() {
-  numberOfInterpolations = Math.floor(score / 5) + 3;
-  if (score % 5 === 3 || score % 5 === 4) {
-    hideMiddleMelody = true;
-  }
-  // 1. update left and right melody
-  // 2. wait for interpolations of left and right
-  // 3. get a new ansIndex (random)
-  // 4. show the new game
-  const keys = Object.keys(presetMelodies);
-  const leftIndex = Math.floor(Math.random() * keys.length);
-  let rightIndex = Math.floor(Math.random() * keys.length);
-  while (leftIndex === rightIndex) {
-    rightIndex = Math.floor(Math.random() * keys.length);
-  }
-  console.log(`left: ${keys[leftIndex]}, right: ${keys[rightIndex]}`);
-  leftMelody = presetMelodies[keys[leftIndex]];
-  rightMelody = presetMelodies[keys[rightIndex]];
-  selectedIndex = -1;
-  ansIndex = Math.floor(Math.random() * numberOfInterpolations);
-  mvae
-    .interpolate([leftMelody, rightMelody], numberOfInterpolations + 2)
-    .then((sample) => {
-      interpolations = sample.slice(1, sample.length - 1);
-      middleMelody = interpolations[ansIndex];
-      canvasLayer.style.display = "none";
-      submitButton.textContent = "where it should be?";
-      submitButton.classList.add("deactivated");
-      playing = true;
-    });
 }
