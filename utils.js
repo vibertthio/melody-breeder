@@ -299,4 +299,19 @@ function blendRGBColors(c0, c1, p) {
   );
 }
 
-function getMatrixFromEvents(events) {}
+function getListFromEvents(melody) {
+  const { notes, totalQuantizedSteps } = melody;
+  const list = Array(totalQuantizedSteps).fill(null);
+  for (let i = 0; i < notes.length; i++) {
+    const { pitch, quantizedStartStep, quantizedEndStep } = notes[i];
+    const noteLength = quantizedEndStep - quantizedStartStep;
+    if (!list[quantizedStartStep]) {
+      list[quantizedStartStep] = [];
+    }
+    list[quantizedStartStep].push({
+      pitch,
+      noteLength,
+    });
+  }
+  return list;
+}
