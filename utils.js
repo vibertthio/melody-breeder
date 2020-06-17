@@ -315,3 +315,22 @@ function getListFromEvents(melody) {
   }
   return list;
 }
+
+function getEventsFromList(list) {
+  const notes = [];
+  for (let step = 0; step < list.length; step++) {
+    const l = list[step];
+    if (!l) {
+      continue;
+    }
+    for (let i = 0; i < l.length; i++) {
+      const { pitch, noteLength } = l[i];
+      notes.push({
+        pitch: pitch,
+        quantizedStartStep: step,
+        quantizedEndStep: step + noteLength,
+      });
+    }
+  }
+  return notes;
+}

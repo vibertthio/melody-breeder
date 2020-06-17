@@ -118,9 +118,6 @@ h1 {
 #control-seperator {
   margin: 0 1rem;
 }
-#history-div {
-  position: relative;
-}
 #control-div {
   position: relative;
 }
@@ -150,10 +147,12 @@ h1 {
 
 /* canvas */
 #canvas-wrapper {
+  position: relative;
   box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
   width: "90%";
   max-width: 600px;
-  background-color: #ccc;
+  background-color: #eee;
+  padding-bottom: 2rem;
   margin: 2rem auto;
   border-radius: 1rem;
 }
@@ -207,7 +206,7 @@ h1 {
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 1rem;
+  border-radius: 1rem 1rem 0 0;
 }
 #canvas-hint-div {
   /* display: none; */
@@ -411,10 +410,52 @@ footer p {
 /* canvases */
 #history-div {
   position: absolute;
-  bottom: 1%;
+  left: 1rem;
+  bottom: 0;
   display: flex;
-  flex-direction: column;
+  width: 90%;
+  height: 2rem;
+  flex-direction: row;
   align-items: center;
+}
+#history-div label {
+  margin: 0 1rem;
+  font-size: 0.8rem;
+  color: #373fff;
+}
+input[type="range"] {
+  -webkit-appearance: none; /* Hides the slider so that custom slider can be made */
+  width: 100%; /* Specific width is required for Firefox. */
+  background: transparent; /* Otherwise white in Chrome */
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  /* border: 1px solid #000000; */
+  height: 15px;
+  width: 5px;
+  border-radius: 3px;
+  background: #373fff;
+  cursor: pointer;
+  margin-top: -7.5px; /* You need to specify a margin in Chrome, but in Firefox and IE it is automatic */
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: #fff;
+  border-radius: 1px;
+}
+input[type="range"]:focus {
+  outline: none; /* Removes the blue border. You should probably do some kind of focus styling for accessibility reasons though. */
+}
+input[type="range"]::-ms-track {
+  width: 100%;
+  cursor: pointer;
+
+  /* Hides the slider so custom styles can be added */
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
 }
 #canvases-div {
   display: flex;

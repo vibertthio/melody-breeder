@@ -16,6 +16,7 @@ const COLORS = [
 const MAIN_CANVAS_PADDING = 20;
 const INSPIRATIONS_CANVAS_PADDING = 2;
 const NUM_SHOWN_KEYS = 48;
+const MELODY_LENGTH = 32;
 let GRID_DOT_SIZE = 4;
 
 const playButton = document.getElementById("play-btn");
@@ -31,6 +32,10 @@ const playAgainButton = document.getElementById("play-again-btn");
 
 let canvas;
 let canvases = [];
+let mouseDown = false;
+const mousePosition = { x: -1, y: -1 };
+const mouseDownPosition = { x: -1, y: -1 };
+let hoverNotePosition = null;
 
 const worker = new Worker("worker.js");
 const { Part, Sequence } = Tone;
@@ -38,13 +43,17 @@ const BPM = 120;
 let part;
 let seq;
 let piano;
-let currentMelody = getListFromEvents(presetMelodies["Twinkle"]);
-let inspirationalMelodies = [
+let currentMelodyData = presetMelodies["Twinkle"];
+let currentMelody = getListFromEvents(currentMelodyData);
+let inspirationalMelodiesData = [
   presetMelodies["Dense"],
   presetMelodies["Arpeggiated"],
   presetMelodies["Melody 1"],
   presetMelodies["Melody 2"],
-].map((m) => getListFromEvents(m));
+];
+let inspirationalMelodies = inspirationalMelodiesData.map((m) => getListFromEvents(m));
+let suggestedMelodies;
+let suggestedMelodiesData;
 
 const audioContext = Tone.context;
 let waitingForResponse = false;
@@ -86,20 +95,78 @@ document.getElementById("splash-play-btn").addEventListener("click", async (e) =
 });
 canvasContainer.addEventListener("mousemove", (e) => {
   const { clientX, clientY } = e;
-  const { width, height } = canvas;
+  const width = canvas.width - 2 * MAIN_CANVAS_PADDING;
+  const height = canvas.height - 2 * MAIN_CANVAS_PADDING;
   let canvasRect = canvas.getBoundingClientRect();
-  const mouseX = clientX - canvasRect.left;
-  const mouseY = clientY - canvasRect.top;
+  const mouseX = clientX - canvasRect.left - MAIN_CANVAS_PADDING;
+  const mouseY = clientY - canvasRect.top - MAIN_CANVAS_PADDING;
+
+  const wUnit = width / MELODY_LENGTH;
+  const hUnit = height / NUM_SHOWN_KEYS;
+
+  const x = Math.floor(mouseX / wUnit + 0.5);
+  const y = Math.floor(mouseY / hUnit + 0.5);
+  mousePosition.x = Math.max(Math.min(x, MELODY_LENGTH), 0);
+  mousePosition.y = Math.max(Math.min(y, NUM_SHOWN_KEYS), 0);
+
+  hoverNotePosition = null;
 });
-canvasContainer.addEventListener("click", (e) => {
+canvasContainer.addEventListener("mousedown", (e) => {
   if (modelLoading) {
     return;
   }
-  const { clientX, clientY } = e;
-  const { width, height } = canvas;
-  let canvasRect = canvas.getBoundingClientRect();
-  const mouseX = clientX - canvasRect.left;
-  const mouseY = clientY - canvasRect.top;
+  // const { clientX, clientY } = e;
+  // const { width, height } = canvas;
+  // let canvasRect = canvas.getBoundingClientRect();
+  // const mouseX = clientX - canvasRect.left;
+  // const mouseY = clientY - canvasRect.top;
+  mouseDown = true;
+  mouseDownPosition.x = mousePosition.x;
+  mouseDownPosition.y = mousePosition.y;
+});
+canvasContainer.addEventListener("mouseup", (e) => {
+  if (modelLoading) {
+    return;
+  }
+
+  if (hoverNotePosition !== null) {
+    const { i, j } = hoverNotePosition;
+    currentMelody[i].splice(j, 1);
+    currentMelodyData.notes = getEventsFromList(currentMelody);
+    mouseDown = false;
+    mouseDownPosition.x = -1;
+    mouseDownPosition.y = -1;
+
+    updateSuggestions();
+    return;
+  }
+
+  if (
+    mouseDown &&
+    mouseDownPosition.x >= 0 &&
+    mouseDownPosition.y >= 0 &&
+    mouseDownPosition.x < MELODY_LENGTH &&
+    mouseDownPosition.y < NUM_SHOWN_KEYS &&
+    mousePosition.x >= 0 &&
+    mousePosition.x > mouseDownPosition.x &&
+    mousePosition.y >= 0 &&
+    mousePosition.x < MELODY_LENGTH &&
+    mousePosition.y < NUM_SHOWN_KEYS
+  ) {
+    currentMelodyData.notes.push({
+      pitch: 96 - mouseDownPosition.y,
+      quantizedStartStep: mouseDownPosition.x,
+      quantizedEndStep: mousePosition.x,
+    });
+    currentMelody = getListFromEvents(currentMelodyData);
+
+    updateSuggestions();
+  }
+
+  mouseDown = false;
+
+  mouseDownPosition.x = -1;
+  mouseDownPosition.y = -1;
 });
 playButton.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -153,6 +220,13 @@ function drawMainCanvas() {
 
   ctx.save();
   ctx.translate(MAIN_CANVAS_PADDING, MAIN_CANVAS_PADDING);
+  if (suggestedMelodies) {
+    ctx.globalAlpha = 0.3;
+    for (let i = 0; i < 4; i++) {
+      drawMelody(ctx, w, h, suggestedMelodies[i], COLORS[i + 1], false);
+    }
+    ctx.globalAlpha = 1.0;
+  }
   drawMainMelody(ctx, w, h);
   ctx.restore();
 }
@@ -174,20 +248,34 @@ function drawInspirationsCanvas() {
     // ctx.fill();
     // ctx.restore();
 
-    drawMelody(ctx, width, height, inspirationalMelodies[id], (color = COLORS[id]), false);
+    drawMelody(ctx, width, height, inspirationalMelodies[id], (color = COLORS[id + 1]), false);
   }
 }
-function drawPatterns(ctx) {
-  const { width, height } = ctx.canvas;
-  const distance = width * DISTANCE_RATIO;
-  const gridWidth = height * GRID_RATIO;
-  const cornerRadius = height * 0.05;
+function drawMouseIndicator(ctx, wUnit, hUnit) {
+  if (mousePosition.x >= 0 && mousePosition.y >= 0) {
+    ctx.save();
+    ctx.translate(mousePosition.x * wUnit, mousePosition.y * hUnit);
+    ctx.fillStyle = COLORS[1];
+    ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, GRID_DOT_SIZE, GRID_DOT_SIZE);
+    ctx.fill();
+    ctx.restore();
+  }
+  if (mouseDown && mouseDownPosition.x >= 0 && mouseDownPosition.y >= 0) {
+    const w = Math.max(0, mousePosition.x - mouseDownPosition.x);
+
+    ctx.save();
+    ctx.translate(mouseDownPosition.x * wUnit, mouseDownPosition.y * hUnit);
+    ctx.fillStyle = COLORS[1];
+    ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, wUnit * w, GRID_DOT_SIZE);
+    ctx.fill();
+    ctx.restore();
+  }
 }
-function drawMainMelody(ctx, width, height, melody = currentMelody, color = COLORS[0], showProgress = true) {
-  const wUnit = width / melody.length;
+function drawMainMelody(ctx, width, height, melody = currentMelody, showProgress = true) {
+  const wUnit = width / MELODY_LENGTH;
   const hUnit = height / NUM_SHOWN_KEYS;
 
-  for (let c = 0; c <= melody.length; c += 2) {
+  for (let c = 0; c <= MELODY_LENGTH; c += 2) {
     for (let r = 0; r <= NUM_SHOWN_KEYS; r += 4) {
       ctx.save();
       ctx.translate(c * wUnit, r * hUnit);
@@ -201,7 +289,10 @@ function drawMainMelody(ctx, width, height, melody = currentMelody, color = COLO
     }
   }
 
-  for (let i = 0; i < melody.length; i++) {
+  // mouse position
+  drawMouseIndicator(ctx, wUnit, hUnit);
+
+  for (let i = 0; i < MELODY_LENGTH; i++) {
     const notes = melody[i];
     if (!notes) {
       continue;
@@ -210,13 +301,12 @@ function drawMainMelody(ctx, width, height, melody = currentMelody, color = COLO
       const { pitch, noteLength } = notes[j];
       ctx.save();
       ctx.translate(i * wUnit, (96 - pitch) * hUnit);
-      ctx.fillStyle = color;
-      const w = noteLength * wUnit * 0.7;
-
-      // ctx.beginPath();
-      // ctx.arc(0, 0, GRID_DOT_SIZE, 0, 2 * Math.PI);
-      // ctx.arc(w, 0, GRID_DOT_SIZE, 0, 2 * Math.PI);
-      // ctx.fill();
+      ctx.fillStyle = COLORS[0];
+      if (96 - pitch === mousePosition.y && i <= mousePosition.x && i + noteLength > mousePosition.x) {
+        ctx.fillStyle = COLORS[6];
+        hoverNotePosition = { i, j };
+      }
+      const w = noteLength * wUnit - GRID_DOT_SIZE * 0.5;
       ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, w, GRID_DOT_SIZE);
       ctx.restore();
     }
@@ -232,10 +322,10 @@ function drawMainMelody(ctx, width, height, melody = currentMelody, color = COLO
   }
 }
 function drawMelody(ctx, width, height, melody = currentMelody, color = COLORS[0], showProgress = true) {
-  const wUnit = width / melody.length;
+  const wUnit = width / MELODY_LENGTH;
   const hUnit = height / 48;
 
-  for (let i = 0; i < melody.length; i++) {
+  for (let i = 0; i < MELODY_LENGTH; i++) {
     const notes = melody[i];
     if (!notes) {
       continue;
@@ -284,7 +374,7 @@ function initMusic() {
         });
       }
     },
-    Array(32)
+    Array(MELODY_LENGTH)
       .fill(null)
       .map((_, i) => i),
     "8n"
@@ -295,8 +385,17 @@ function initMusic() {
   worker.onmessage = (e) => {
     console.log("[worker on message]");
     console.log(e);
-    canvasLayer.style.display = "none";
-    modelLoading = false;
+
+    if (e.data.msg === "init") {
+      canvasLayer.style.display = "none";
+      modelLoading = false;
+      updateSuggestions();
+    }
+
+    if (e.data.msg === "interpolate") {
+      suggestedMelodiesData = e.data.interpolatedMelodies;
+      suggestedMelodies = suggestedMelodiesData.map((m) => getListFromEvents(m));
+    }
   };
 }
 function playPianoNote(time = 0, pitch = 55, length = 8, vol = 0.3) {
@@ -326,6 +425,13 @@ function playMelody(melody) {
   part.loopEnd = "2:0:0";
   part.start("+0.1");
   part.stop("+2m");
+}
+function updateSuggestions() {
+  worker.postMessage({
+    msg: "interpolate",
+    currentMelody: currentMelodyData,
+    inspirationalMelodies: inspirationalMelodiesData,
+  });
 }
 
 initCanvas();
