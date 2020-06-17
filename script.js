@@ -5,22 +5,18 @@ if (isMobile) {
 }
 
 const COLORS = [
-  "rgb(55, 63, 255)",
-  "rgb(55, 63, 255)",
-  "rgba(255, 255, 232, 1)",
-  "rgb(55, 63, 255)",
-  "rgb(255, 178, 230)",
-  // "rgb(140, 255, 218)",
-  // "rgb(229, 117, 66)",
-  // "rgb(230, 194, 41)",
-  // "rgb(30, 150, 252)",
-  // "rgb(162, 214, 249)",
+  "rgb(55, 63, 255)", // 0. main canvas pianoroll
+  "rgb(251, 120, 19)",
+  "rgb(0, 194, 209)",
+  "rgb(231, 48, 91)",
+  "rgb(114, 106, 149)",
+  "rgb(220, 220, 230)", // 5. grid dot
+  "rgb(232, 106, 146)", // 6. progress indicator
 ];
-const LOWER_BAR_RATIO = 0.6;
-const HIGHER_BAR_RATIO = 0.3;
-const GRID_RATIO = isMobile ? 0.18 : 0.27;
-const DISTANCE_RATIO = isMobile ? 0.7 : 0.6;
-const RADIO_WIDTH_RATIO = isMobile ? 0.7 : 0.8;
+const MAIN_CANVAS_PADDING = 20;
+const INSPIRATIONS_CANVAS_PADDING = 2;
+const NUM_SHOWN_KEYS = 48;
+let GRID_DOT_SIZE = 4;
 
 const playButton = document.getElementById("play-btn");
 const submitButton = document.getElementById("submit-button");
@@ -44,11 +40,11 @@ let seq;
 let piano;
 let currentMelody = getListFromEvents(presetMelodies["Twinkle"]);
 let inspirationalMelodies = [
-  presetMelodies["Twinkle"],
+  presetMelodies["Dense"],
   presetMelodies["Arpeggiated"],
   presetMelodies["Melody 1"],
   presetMelodies["Melody 2"],
-];
+].map((m) => getListFromEvents(m));
 
 const audioContext = Tone.context;
 let waitingForResponse = false;
@@ -138,7 +134,6 @@ function setup() {
   Tone.Transport.bpm.value = BPM;
 }
 function draw() {
-  // do things
   drawMainCanvas();
   drawInspirationsCanvas();
 
@@ -149,16 +144,21 @@ function draw() {
 function drawMainCanvas() {
   let ctx = canvas.getContext("2d");
   const { width, height } = ctx.canvas;
-
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = "rgba(255, 255, 255, 1)";
   ctx.fillRect(0, 0, width, height);
 
-  drawMainMelody(ctx, width, height);
+  const w = width - 2 * MAIN_CANVAS_PADDING;
+  const h = height - 2 * MAIN_CANVAS_PADDING;
+
+  ctx.save();
+  ctx.translate(MAIN_CANVAS_PADDING, MAIN_CANVAS_PADDING);
+  drawMainMelody(ctx, w, h);
+  ctx.restore();
 }
 function drawInspirationsCanvas() {
-  for (let i = 0; i < canvases.length; i++) {
-    const canvas = canvases[i];
+  for (let id = 0; id < canvases.length; id++) {
+    const canvas = canvases[id];
     let ctx = canvas.getContext("2d");
     const { width, height } = ctx.canvas;
 
@@ -166,7 +166,15 @@ function drawInspirationsCanvas() {
     ctx.fillStyle = "rgba(255, 255, 255, 1)";
     ctx.fillRect(0, 0, width, height);
 
-    drawPatterns(ctx);
+    // ctx.save();
+    // ctx.translate(width * 0.5, height * 0.5);
+    // ctx.fillStyle = COLORS[id + 4];
+    // ctx.beginPath();
+    // ctx.arc(0, 0, width * 0.1 * (1 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
+    // ctx.fill();
+    // ctx.restore();
+
+    drawMelody(ctx, width, height, inspirationalMelodies[id], (color = COLORS[id]), false);
   }
 }
 function drawPatterns(ctx) {
@@ -174,25 +182,27 @@ function drawPatterns(ctx) {
   const distance = width * DISTANCE_RATIO;
   const gridWidth = height * GRID_RATIO;
   const cornerRadius = height * 0.05;
-
-  // ctx.strokeStyle = "rgba(0, 0, 200, 1.0)";
-  // ctx.lineWidth = 3;
-  ctx.save();
-
-  ctx.translate(width * 0.5, height * 0.5);
-  ctx.fillStyle = COLORS[3];
-  ctx.beginPath();
-  ctx.arc(0, 0, width * 0.1 * (1 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
-  ctx.fill();
-
-  ctx.restore();
 }
-function drawMainMelody(ctx, width, height) {
-  const wUnit = width / currentMelody.length;
-  const hUnit = height / 48;
+function drawMainMelody(ctx, width, height, melody = currentMelody, color = COLORS[0], showProgress = true) {
+  const wUnit = width / melody.length;
+  const hUnit = height / NUM_SHOWN_KEYS;
 
-  for (let i = 0; i < currentMelody.length; i++) {
-    const notes = currentMelody[i];
+  for (let c = 0; c <= melody.length; c += 2) {
+    for (let r = 0; r <= NUM_SHOWN_KEYS; r += 4) {
+      ctx.save();
+      ctx.translate(c * wUnit, r * hUnit);
+      ctx.fillStyle = COLORS[5];
+      // ctx.beginPath();
+      // ctx.arc(0, 0, GRID_DOT_SIZE, 0, 2 * Math.PI);
+
+      ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, GRID_DOT_SIZE, GRID_DOT_SIZE);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  for (let i = 0; i < melody.length; i++) {
+    const notes = melody[i];
     if (!notes) {
       continue;
     }
@@ -200,14 +210,48 @@ function drawMainMelody(ctx, width, height) {
       const { pitch, noteLength } = notes[j];
       ctx.save();
       ctx.translate(i * wUnit, (96 - pitch) * hUnit);
-      ctx.fillStyle = COLORS[3];
+      ctx.fillStyle = color;
+      const w = noteLength * wUnit * 0.7;
+
+      // ctx.beginPath();
+      // ctx.arc(0, 0, GRID_DOT_SIZE, 0, 2 * Math.PI);
+      // ctx.arc(w, 0, GRID_DOT_SIZE, 0, 2 * Math.PI);
+      // ctx.fill();
+      ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, w, GRID_DOT_SIZE);
+      ctx.restore();
+    }
+  }
+
+  if (showProgress && seq.state === "started") {
+    const p = seq.progress;
+    ctx.save();
+    ctx.translate(width * p, -MAIN_CANVAS_PADDING);
+    ctx.fillStyle = COLORS[6];
+    ctx.fillRect(0, 0, GRID_DOT_SIZE, height + MAIN_CANVAS_PADDING * 2);
+    ctx.restore();
+  }
+}
+function drawMelody(ctx, width, height, melody = currentMelody, color = COLORS[0], showProgress = true) {
+  const wUnit = width / melody.length;
+  const hUnit = height / 48;
+
+  for (let i = 0; i < melody.length; i++) {
+    const notes = melody[i];
+    if (!notes) {
+      continue;
+    }
+    for (let j = 0; j < notes.length; j++) {
+      const { pitch, noteLength } = notes[j];
+      ctx.save();
+      ctx.translate(i * wUnit, (96 - pitch) * hUnit);
+      ctx.fillStyle = color;
       const w = noteLength * wUnit * 0.85;
       ctx.fillRect(0, 0, w, hUnit);
       ctx.restore();
     }
   }
 
-  if (seq.state === "started") {
+  if (showProgress && seq.state === "started") {
     const p = seq.progress;
     ctx.save();
     ctx.translate(width * p, 0);
