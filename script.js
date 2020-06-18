@@ -71,6 +71,7 @@ let historyMelodies = [
   },
 ];
 let interpolatedMelodies = [];
+let interpolatedMelodiesData = [];
 let interpolating = Array(NUM_INSPIRATIONAL_MELODIES).fill(true);
 let historyCurrentIndex = -1;
 
@@ -267,6 +268,15 @@ function initCanvas() {
       interpolatedPos = -1;
       if (interpolatedMelodies[i]) {
         currentMelody = interpolatedMelodies[i][0];
+      }
+    });
+    canvases[i].addEventListener("click", (e) => {
+      if (interpolatedPos !== -1) {
+        // console.log("data", interpolatedMelodiesData[i]);
+        currentMelody = interpolatedMelodies[i][interpolatedPos];
+        currentMelodyData = interpolatedMelodiesData[i][interpolatedPos];
+        updateSuggestions();
+        pushCurrentMelodyIntoHistory();
       }
     });
   }
@@ -512,6 +522,7 @@ function initMusic() {
     if (e.data.msg === "interpolate") {
       const { id, result } = e.data;
       interpolating[id] = false;
+      interpolatedMelodiesData[id] = result;
       interpolatedMelodies[id] = result.map((m) => getListFromEvents(m));
       // console.log("result", interpolatedMelodies);
     }
