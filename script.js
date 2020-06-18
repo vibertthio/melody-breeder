@@ -38,6 +38,7 @@ let mouseDown = false;
 const mousePosition = { x: -1, y: -1 };
 const mouseDownPosition = { x: -1, y: -1 };
 let hoverNotePosition = null;
+const mousePositionOnCanvases = [];
 
 const worker = new Worker("worker.js");
 const { Part, Sequence } = Tone;
@@ -217,6 +218,26 @@ function initCanvas() {
     let container = document.getElementById(`canvas-div-${i + 1}`);
     canvases[i].width = container.clientWidth;
     canvases[i].height = container.clientHeight;
+
+    mousePositionOnCanvases[i] = { x: canvases[i].width, y: canvases[i].height };
+    canvases[i].addEventListener("mousemove", (e) => {
+      const { clientX, clientY } = e;
+      const width = canvases[i].width;
+      const height = canvases[i].height;
+      let canvasRect = canvases[i].getBoundingClientRect();
+      const mouseX = clientX - canvasRect.left;
+      const mouseY = clientY - canvasRect.top;
+
+      // console.log(`[${i}] x: ${mouseX}, y: ${mouseY}`);
+      mousePositionOnCanvases[i].x = mouseX;
+      mousePositionOnCanvases[i].y = mouseY;
+    });
+    canvases[i].addEventListener("mouseleave", (e) => {
+      const width = canvases[i].width;
+      const height = canvases[i].height;
+      mousePositionOnCanvases[i].x = width;
+      mousePositionOnCanvases[i].y = height;
+    });
   }
 }
 function setup() {
@@ -254,8 +275,8 @@ function drawMainCanvas() {
   ctx.restore();
 }
 function drawInspirationsCanvas() {
-  for (let id = 0; id < canvases.length; id++) {
-    const canvas = canvases[id];
+  for (let i = 0; i < canvases.length; i++) {
+    const canvas = canvases[i];
     let ctx = canvas.getContext("2d");
     const { width, height } = ctx.canvas;
 
@@ -271,7 +292,13 @@ function drawInspirationsCanvas() {
     // ctx.fill();
     // ctx.restore();
 
-    drawMelody(ctx, width, height, inspirationalMelodies[id], (color = COLORS[id + 1]), false);
+    drawMelody(ctx, width, height, inspirationalMelodies[i], (color = COLORS[i + 1]), false);
+
+    ctx.save();
+    ctx.translate(0, height);
+    ctx.fillStyle = addAlpha(COLORS[i + 1], 0.3);
+    ctx.fillRect(0, 0, width, mousePositionOnCanvases[i].y - height);
+    ctx.restore();
   }
 }
 function drawMouseIndicator(ctx, wUnit, hUnit) {

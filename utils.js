@@ -360,3 +360,7 @@ function copyMelody(m) {
   }
   return newMelody;
 }
+
+function addAlpha(color, alpha) {
+  return color.replace(")", `, ${alpha})`).replace("rgb", "rgba");
+}
