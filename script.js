@@ -18,6 +18,7 @@ const MAIN_CANVAS_PADDING = 20;
 const INSPIRATIONS_CANVAS_PADDING = 2;
 const NUM_SHOWN_KEYS = 48;
 const MELODY_LENGTH = 32;
+const NUM_INSPIRATIONAL_MELODIES = 4;
 const NUM_INTERPOLATIONS = 5;
 let GRID_DOT_SIZE = 4;
 
@@ -35,7 +36,6 @@ const bpmInput = document.getElementById("bpm-input");
 
 let canvas;
 let canvases = [];
-let interpolatedMelodies = [];
 let hoveredCanvasIndex = -1;
 let interpolatedPos = -1;
 let mouseDown = false;
@@ -67,6 +67,8 @@ let historyMelodies = [
     data: getPresetMelodies("Empty"),
   },
 ];
+let interpolatedMelodies = [];
+let interpolating = Array(NUM_INSPIRATIONAL_MELODIES).fill;
 let historyCurrentIndex = -1;
 
 const audioContext = Tone.context;
@@ -85,7 +87,7 @@ window.addEventListener("resize", () => {
   canvas.width = document.getElementById("canvas-container").clientWidth;
   canvas.height = document.getElementById("canvas-container").clientHeight;
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < NUM_INSPIRATIONAL_MELODIES; i++) {
     canvases[i] = document.getElementById(`canvas-${i + 1}`);
     let container = document.getElementById(`canvas-div-${i + 1}`);
     canvases[i].width = container.clientWidth;
@@ -292,7 +294,7 @@ function drawMainCanvas() {
   ctx.translate(MAIN_CANVAS_PADDING, MAIN_CANVAS_PADDING);
   if (suggestedMelodies) {
     ctx.globalAlpha = 0.3;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < NUM_INSPIRATIONAL_MELODIES; i++) {
       drawMelody(ctx, w, h, suggestedMelodies[i], COLORS[i + 1], false);
     }
     ctx.globalAlpha = 1.0;
@@ -481,7 +483,7 @@ function initMusic() {
       modelLoading = false;
       updateSuggestions();
 
-      // for (let i = 0; i < 4; i++) {
+      // for (let i = 0; i < NUM_INSPIRATIONAL_MELODIES; i++) {
       //   getInterpolations(i, currentMelodyData, inspirationalMelodiesData[i]);
       // }
     }
@@ -490,7 +492,7 @@ function initMusic() {
       suggestedMelodiesData = e.data.interpolatedMelodies;
       suggestedMelodies = suggestedMelodiesData.map((m) => getListFromEvents(m));
 
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < NUM_INSPIRATIONAL_MELODIES; i++) {
         getInterpolations(i, currentMelodyData, inspirationalMelodiesData[i]);
       }
     }
