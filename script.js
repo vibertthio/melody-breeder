@@ -18,6 +18,7 @@ const MAIN_CANVAS_PADDING = 20;
 const INSPIRATIONS_CANVAS_PADDING = 2;
 const NUM_SHOWN_KEYS = 48;
 const MELODY_LENGTH = 32;
+const NUM_INTERPOLATIONS = 5;
 let GRID_DOT_SIZE = 4;
 
 const playButton = document.getElementById("play-btn");
@@ -34,6 +35,8 @@ const bpmInput = document.getElementById("bpm-input");
 
 let canvas;
 let canvases = [];
+let interpolatedMelodies = [];
+let interpolatedPos = -1;
 let mouseDown = false;
 const mousePosition = { x: -1, y: -1 };
 const mouseDownPosition = { x: -1, y: -1 };
@@ -231,12 +234,28 @@ function initCanvas() {
       // console.log(`[${i}] x: ${mouseX}, y: ${mouseY}`);
       mousePositionOnCanvases[i].x = mouseX;
       mousePositionOnCanvases[i].y = mouseY;
+
+      // [TODO] fix here
+      let pos = Math.min(
+        NUM_INTERPOLATIONS - 1,
+        Math.max(0, NUM_INTERPOLATIONS - 1 - Math.floor((mouseY / height) * NUM_INTERPOLATIONS))
+      );
+      if (pos !== interpolatedPos) {
+        interpolatedPos = pos;
+        if (interpolatedMelodies[i]) {
+          currentMelody = interpolatedMelodies[i][pos];
+        }
+      }
     });
     canvases[i].addEventListener("mouseleave", (e) => {
       const width = canvases[i].width;
       const height = canvases[i].height;
       mousePositionOnCanvases[i].x = width;
       mousePositionOnCanvases[i].y = height;
+      interpolatedPos = -1;
+      if (interpolatedMelodies[i]) {
+        currentMelody = interpolatedMelodies[i][0];
+      }
     });
   }
 }
@@ -284,13 +303,15 @@ function drawInspirationsCanvas() {
     ctx.fillStyle = "rgba(255, 255, 255, 1)";
     ctx.fillRect(0, 0, width, height);
 
-    // ctx.save();
-    // ctx.translate(width * 0.5, height * 0.5);
-    // ctx.fillStyle = COLORS[id + 4];
-    // ctx.beginPath();
-    // ctx.arc(0, 0, width * 0.1 * (1 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
-    // ctx.fill();
-    // ctx.restore();
+    if (!interpolatedMelodies[i]) {
+      ctx.save();
+      ctx.translate(width * 0.5, height * 0.5);
+      ctx.fillStyle = addAlpha(COLORS[i + 1], 0.5);
+      ctx.beginPath();
+      ctx.arc(0, 0, width * 0.1 * (1 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.restore();
+    }
 
     drawMelody(ctx, width, height, inspirationalMelodies[i], (color = COLORS[i + 1]), false);
 
@@ -434,18 +455,28 @@ function initMusic() {
   // magenta.js model
   worker.postMessage({ msg: "init" });
   worker.onmessage = (e) => {
-    console.log("[worker on message]");
-    console.log(e);
+    // console.log("[worker on message]");
+    // console.log(e);
 
     if (e.data.msg === "init") {
       canvasLayer.style.display = "none";
       modelLoading = false;
       updateSuggestions();
+
+      for (let i = 0; i < 4; i++) {
+        getInterpolations(i, currentMelodyData, inspirationalMelodiesData[i]);
+      }
+    }
+
+    if (e.data.msg === "sample") {
+      suggestedMelodiesData = e.data.interpolatedMelodies;
+      suggestedMelodies = suggestedMelodiesData.map((m) => getListFromEvents(m));
     }
 
     if (e.data.msg === "interpolate") {
-      suggestedMelodiesData = e.data.interpolatedMelodies;
-      suggestedMelodies = suggestedMelodiesData.map((m) => getListFromEvents(m));
+      const { id, result } = e.data;
+      interpolatedMelodies[id] = result.map((m) => getListFromEvents(m));
+      // console.log("result", interpolatedMelodies);
     }
   };
 
@@ -481,10 +512,13 @@ function playMelody(melody) {
 }
 function updateSuggestions() {
   worker.postMessage({
-    msg: "interpolate",
+    msg: "sample",
     currentMelody: currentMelodyData,
     inspirationalMelodies: inspirationalMelodiesData,
   });
+}
+function getInterpolations(id, left, right) {
+  worker.postMessage({ id, msg: "interpolate", left, right });
 }
 function pushCurrentMelodyIntoHistory() {
   // 1. note change

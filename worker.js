@@ -19,8 +19,8 @@ self.onmessage = async ({ data }) => {
     }
   }
 
-  if (data.msg === "interpolate") {
-    console.log("start interpolation");
+  if (data.msg === "sample") {
+    console.log("start sampling");
     const scale = 4;
     const { currentMelody, inspirationalMelodies } = data;
 
@@ -38,6 +38,12 @@ self.onmessage = async ({ data }) => {
     tensors = tensors.add(diffTensors.div(norms).mul(tf.scalar(scale)));
     const interpolatedMelodies = await mvae.decode(tensors);
 
-    postMessage({ msg: "interpolate", interpolatedMelodies });
+    postMessage({ msg: "sample", interpolatedMelodies });
+  }
+
+  if (data.msg === "interpolate") {
+    const { left, right, id } = data;
+    const result = await mvae.interpolate([left, right], 5);
+    postMessage({ id, msg: "interpolate", result });
   }
 };
