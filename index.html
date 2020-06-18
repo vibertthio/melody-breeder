@@ -93,8 +93,8 @@
           </button>
         </div>
         <div id="bpm-div">
-          <span>bpm</span>
-          <input type="range" id="bpm-input" value="150" min="90" max="300" step="10" />
+          <p><span id="bpm-value">200</span> bpm</p>
+          <input type="range" id="bpm-input" value="200" min="90" max="300" step="10" />
         </div>
       </div>
 
@@ -127,7 +127,7 @@
           <canvas id="play-canvas"></canvas>
         </div>
         <div id="history-div">
-          <label for="volume">history</label>
+          <label for="volume">history[<span id="history-current">1</span>/<span id="history-total">1</span>]</label>
           <input type="range" id="history-input" min="0" max="1" step="0.01" />
         </div>
       </div>

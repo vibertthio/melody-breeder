@@ -42,7 +42,6 @@ self.onmessage = async ({ data }) => {
   }
 
   if (data.msg === "interpolate") {
-    console.log("start interpolating");
     const { left, right, id } = data;
     const result = await mvae.interpolate([left, right], 5);
     postMessage({ id, msg: "interpolate", result });

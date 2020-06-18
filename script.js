@@ -33,6 +33,9 @@ const commentTextElement = document.getElementById("comment");
 const playAgainButton = document.getElementById("play-again-btn");
 const historyInput = document.getElementById("history-input");
 const bpmInput = document.getElementById("bpm-input");
+const historyCurrentSpan = document.getElementById("history-current");
+const historyTotalSpan = document.getElementById("history-total");
+const bpmValueSpan = document.getElementById("bpm-value");
 
 let canvas;
 let canvases = [];
@@ -46,7 +49,7 @@ const mousePositionOnCanvases = [];
 
 const worker = new Worker("worker.js");
 const { Part, Sequence } = Tone;
-const BPM = 150;
+const BPM = 200;
 let part;
 let seq;
 let piano;
@@ -68,7 +71,7 @@ let historyMelodies = [
   },
 ];
 let interpolatedMelodies = [];
-let interpolating = Array(NUM_INSPIRATIONAL_MELODIES).fill;
+let interpolating = Array(NUM_INSPIRATIONAL_MELODIES).fill(true);
 let historyCurrentIndex = -1;
 
 const audioContext = Tone.context;
@@ -215,8 +218,8 @@ historyInput.addEventListener("change", (e) => {
   updateSuggestions();
 });
 bpmInput.addEventListener("input", (e) => {
-  console.log("bpm", e.target.value);
-  (Tone.Transport.bpm.value = e.target.value), 10;
+  bpmValueSpan.textContent = `${e.target.value}`;
+  Tone.Transport.bpm.value = e.target.value;
 });
 
 // visual
@@ -295,7 +298,7 @@ function drawMainCanvas() {
   if (suggestedMelodies) {
     ctx.globalAlpha = 0.3;
     for (let i = 0; i < NUM_INSPIRATIONAL_MELODIES; i++) {
-      drawMelody(ctx, w, h, suggestedMelodies[i], COLORS[i + 1], false);
+      drawMelody(ctx, w, h, suggestedMelodies[i], COLORS[i + 1], false, GRID_DOT_SIZE * 1.4);
     }
     ctx.globalAlpha = 1.0;
   }
@@ -322,7 +325,7 @@ function drawInspirationsCanvas() {
       ctx.restore();
     }
 
-    drawMelody(ctx, width, height, inspirationalMelodies[i], (color = COLORS[i + 1]), false);
+    drawMelody(ctx, width, height, inspirationalMelodies[i], (color = COLORS[i + 1]), false, height / NUM_SHOWN_KEYS);
 
     ctx.save();
     ctx.translate(0, height);
@@ -413,7 +416,15 @@ function drawMainMelody(ctx, width, height, melody = currentMelody, showProgress
     ctx.restore();
   }
 }
-function drawMelody(ctx, width, height, melody = currentMelody, color = COLORS[0], showProgress = true) {
+function drawMelody(
+  ctx,
+  width,
+  height,
+  melody = currentMelody,
+  color = COLORS[0],
+  showProgress = true,
+  dotSize = GRID_DOT_SIZE
+) {
   const wUnit = width / MELODY_LENGTH;
   const hUnit = height / 48;
 
@@ -427,8 +438,8 @@ function drawMelody(ctx, width, height, melody = currentMelody, color = COLORS[0
       ctx.save();
       ctx.translate(i * wUnit, (96 - pitch) * hUnit);
       ctx.fillStyle = color;
-      const w = noteLength * wUnit * 0.85;
-      ctx.fillRect(0, 0, w, hUnit);
+      const w = noteLength * wUnit - dotSize * 0.5;
+      ctx.fillRect(-dotSize * 0.2, -dotSize * 0.2, w, dotSize);
       ctx.restore();
     }
   }
@@ -493,12 +504,14 @@ function initMusic() {
       suggestedMelodies = suggestedMelodiesData.map((m) => getListFromEvents(m));
 
       for (let i = 0; i < NUM_INSPIRATIONAL_MELODIES; i++) {
+        interpolating[i] = true;
         getInterpolations(i, currentMelodyData, inspirationalMelodiesData[i]);
       }
     }
 
     if (e.data.msg === "interpolate") {
       const { id, result } = e.data;
+      interpolating[id] = false;
       interpolatedMelodies[id] = result.map((m) => getListFromEvents(m));
       // console.log("result", interpolatedMelodies);
     }
@@ -555,7 +568,9 @@ function pushCurrentMelodyIntoHistory() {
   // console.log("history", historyMelodies);
   historyInput.value = 1;
   historyInput.step = `${1 / (historyMelodies.length - 1)}`;
-  console.log("step value", historyInput.step);
+  // console.log("step value", historyInput.step);
+
+  updateHistoryTexts();
 }
 function retriveMelodyFromHisotry(ratio) {
   // ratio is in [0, 1]
@@ -568,6 +583,12 @@ function retriveMelodyFromHisotry(ratio) {
   const { melody, data } = historyMelodies[index];
   currentMelody = melody;
   currentMelodyData = data;
+
+  updateHistoryTexts();
+}
+function updateHistoryTexts() {
+  historyCurrentSpan.textContent = `${historyCurrentIndex}`;
+  historyTotalSpan.textContent = `${historyMelodies.length - 1}`;
 }
 
 initCanvas();
