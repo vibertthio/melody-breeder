@@ -36,6 +36,7 @@ const bpmInput = document.getElementById("bpm-input");
 let canvas;
 let canvases = [];
 let interpolatedMelodies = [];
+let hoveredCanvasIndex = -1;
 let interpolatedPos = -1;
 let mouseDown = false;
 const mousePosition = { x: -1, y: -1 };
@@ -105,6 +106,10 @@ document.getElementById("splash-play-btn").addEventListener("click", async (e) =
 
   setup();
   draw();
+});
+canvasContainer.addEventListener("mouseleave", () => {
+  mousePosition.x = -1;
+  mousePosition.y = -1;
 });
 canvasContainer.addEventListener("mousemove", (e) => {
   const { clientX, clientY } = e;
@@ -202,8 +207,10 @@ playAgainButton.addEventListener("click", (e) => {
   e.stopPropagation();
 });
 historyInput.addEventListener("input", (e) => {
-  console.log("input value", e.target.value);
   retriveMelodyFromHisotry(e.target.value);
+});
+historyInput.addEventListener("change", (e) => {
+  updateSuggestions();
 });
 bpmInput.addEventListener("input", (e) => {
   console.log("bpm", e.target.value);
@@ -231,16 +238,15 @@ function initCanvas() {
       const mouseX = clientX - canvasRect.left;
       const mouseY = clientY - canvasRect.top;
 
-      // console.log(`[${i}] x: ${mouseX}, y: ${mouseY}`);
+      hoveredCanvasIndex = i;
       mousePositionOnCanvases[i].x = mouseX;
       mousePositionOnCanvases[i].y = mouseY;
+      // console.log(`[${i}] x: ${mouseX}, y: ${mouseY}`);
 
       // [TODO] fix here
-      let pos = Math.min(
-        NUM_INTERPOLATIONS - 1,
-        Math.max(0, NUM_INTERPOLATIONS - 1 - Math.floor((mouseY / height) * NUM_INTERPOLATIONS))
-      );
+      let pos = Math.floor((1 - Math.max(0.01, Math.min(0.99, mouseY / height))) * NUM_INTERPOLATIONS);
       if (pos !== interpolatedPos) {
+        // console.log("pos", pos);
         interpolatedPos = pos;
         if (interpolatedMelodies[i]) {
           currentMelody = interpolatedMelodies[i][pos];
@@ -252,6 +258,7 @@ function initCanvas() {
       const height = canvases[i].height;
       mousePositionOnCanvases[i].x = width;
       mousePositionOnCanvases[i].y = height;
+      hoveredCanvasIndex = -1;
       interpolatedPos = -1;
       if (interpolatedMelodies[i]) {
         currentMelody = interpolatedMelodies[i][0];
@@ -355,6 +362,7 @@ function drawMainMelody(ctx, width, height, melody = currentMelody, showProgress
       ctx.save();
       ctx.translate(c * wUnit, r * hUnit);
       ctx.fillStyle = COLORS[5];
+      ctx.beginPath();
       ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, GRID_DOT_SIZE, GRID_DOT_SIZE);
       ctx.fill();
       ctx.restore();
@@ -374,10 +382,20 @@ function drawMainMelody(ctx, width, height, melody = currentMelody, showProgress
       ctx.save();
       ctx.translate(i * wUnit, (96 - pitch) * hUnit);
       ctx.fillStyle = COLORS[0];
+
+      if (hoveredCanvasIndex !== -1) {
+        ctx.fillStyle = blendRGBColors(
+          COLORS[0],
+          COLORS[hoveredCanvasIndex + 1],
+          interpolatedPos / (NUM_INTERPOLATIONS - 1)
+        );
+      }
+
       if (96 - pitch === mousePosition.y && i <= mousePosition.x && i + noteLength > mousePosition.x) {
         ctx.fillStyle = COLORS[6];
         hoverNotePosition = { i, j };
       }
+
       const w = noteLength * wUnit - GRID_DOT_SIZE * 0.5;
       ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, w, GRID_DOT_SIZE);
       ctx.restore();
@@ -463,14 +481,18 @@ function initMusic() {
       modelLoading = false;
       updateSuggestions();
 
-      for (let i = 0; i < 4; i++) {
-        getInterpolations(i, currentMelodyData, inspirationalMelodiesData[i]);
-      }
+      // for (let i = 0; i < 4; i++) {
+      //   getInterpolations(i, currentMelodyData, inspirationalMelodiesData[i]);
+      // }
     }
 
     if (e.data.msg === "sample") {
       suggestedMelodiesData = e.data.interpolatedMelodies;
       suggestedMelodies = suggestedMelodiesData.map((m) => getListFromEvents(m));
+
+      for (let i = 0; i < 4; i++) {
+        getInterpolations(i, currentMelodyData, inspirationalMelodiesData[i]);
+      }
     }
 
     if (e.data.msg === "interpolate") {
@@ -528,7 +550,7 @@ function pushCurrentMelodyIntoHistory() {
     data: currentMelodyData,
   });
   historyCurrentIndex = historyMelodies.length - 1;
-  console.log("history", historyMelodies);
+  // console.log("history", historyMelodies);
   historyInput.value = 1;
   historyInput.step = `${1 / (historyMelodies.length - 1)}`;
   console.log("step value", historyInput.step);
@@ -537,8 +559,8 @@ function retriveMelodyFromHisotry(ratio) {
   // ratio is in [0, 1]
 
   const index = Math.round((historyMelodies.length - 1) * ratio);
-  console.log(`get history at [${index}]`);
-  console.log("history", historyMelodies);
+  // console.log(`get history at [${index}]`);
+  // console.log("history", historyMelodies);
   historyCurrentIndex = index;
 
   const { melody, data } = historyMelodies[index];
