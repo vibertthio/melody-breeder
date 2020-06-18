@@ -10,6 +10,7 @@ const COLORS = [
   "rgb(0, 194, 209)",
   "rgb(231, 48, 91)",
   "rgb(114, 106, 149)",
+  // "rgb(255, 0, 234)",
   "rgb(220, 220, 230)", // 5. grid dot
   "rgb(232, 106, 146)", // 6. progress indicator
 ];
@@ -28,7 +29,8 @@ const endingButtonDivElement = document.getElementById("layer-button-div");
 const loadingTextElement = document.getElementById("loading-div");
 const commentTextElement = document.getElementById("comment");
 const playAgainButton = document.getElementById("play-again-btn");
-// const canvasHintDiv = document.getElementById("canvas-hint-div");
+const historyInput = document.getElementById("history-input");
+const bpmInput = document.getElementById("bpm-input");
 
 let canvas;
 let canvases = [];
@@ -39,21 +41,28 @@ let hoverNotePosition = null;
 
 const worker = new Worker("worker.js");
 const { Part, Sequence } = Tone;
-const BPM = 120;
+const BPM = 150;
 let part;
 let seq;
 let piano;
-let currentMelodyData = presetMelodies["Twinkle"];
+let currentMelodyData = getPresetMelodies("Twinkle");
 let currentMelody = getListFromEvents(currentMelodyData);
 let inspirationalMelodiesData = [
-  presetMelodies["Dense"],
-  presetMelodies["Arpeggiated"],
-  presetMelodies["Melody 1"],
-  presetMelodies["Melody 2"],
+  getPresetMelodies("Dense"),
+  getPresetMelodies("Arpeggiated"),
+  getPresetMelodies("Melody 1"),
+  getPresetMelodies("Melody 2"),
 ];
 let inspirationalMelodies = inspirationalMelodiesData.map((m) => getListFromEvents(m));
 let suggestedMelodies;
 let suggestedMelodiesData;
+let historyMelodies = [
+  {
+    melody: [],
+    data: getPresetMelodies("Empty"),
+  },
+];
+let historyCurrentIndex = -1;
 
 const audioContext = Tone.context;
 let waitingForResponse = false;
@@ -129,6 +138,7 @@ canvasContainer.addEventListener("mouseup", (e) => {
     return;
   }
 
+  // remove note
   if (hoverNotePosition !== null) {
     const { i, j } = hoverNotePosition;
     currentMelody[i].splice(j, 1);
@@ -138,9 +148,11 @@ canvasContainer.addEventListener("mouseup", (e) => {
     mouseDownPosition.y = -1;
 
     updateSuggestions();
+    pushCurrentMelodyIntoHistory();
     return;
   }
 
+  // add note
   if (
     mouseDown &&
     mouseDownPosition.x >= 0 &&
@@ -153,6 +165,7 @@ canvasContainer.addEventListener("mouseup", (e) => {
     mousePosition.x < MELODY_LENGTH &&
     mousePosition.y < NUM_SHOWN_KEYS
   ) {
+    // note changed
     currentMelodyData.notes.push({
       pitch: 96 - mouseDownPosition.y,
       quantizedStartStep: mouseDownPosition.x,
@@ -161,6 +174,7 @@ canvasContainer.addEventListener("mouseup", (e) => {
     currentMelody = getListFromEvents(currentMelodyData);
 
     updateSuggestions();
+    pushCurrentMelodyIntoHistory();
   }
 
   mouseDown = false;
@@ -181,6 +195,14 @@ playButton.addEventListener("click", (e) => {
 });
 playAgainButton.addEventListener("click", (e) => {
   e.stopPropagation();
+});
+historyInput.addEventListener("input", (e) => {
+  console.log("input value", e.target.value);
+  retriveMelodyFromHisotry(e.target.value);
+});
+bpmInput.addEventListener("input", (e) => {
+  console.log("bpm", e.target.value);
+  (Tone.Transport.bpm.value = e.target.value), 10;
 });
 
 // visual
@@ -227,7 +249,7 @@ function drawMainCanvas() {
     }
     ctx.globalAlpha = 1.0;
   }
-  drawMainMelody(ctx, w, h);
+  drawMainMelody(ctx, w, h, currentMelody);
   ctx.restore();
 }
 function drawInspirationsCanvas() {
@@ -252,7 +274,7 @@ function drawInspirationsCanvas() {
   }
 }
 function drawMouseIndicator(ctx, wUnit, hUnit) {
-  if (mousePosition.x >= 0 && mousePosition.y >= 0) {
+  if (!mouseDown && mousePosition.x >= 0 && mousePosition.y >= 0) {
     ctx.save();
     ctx.translate(mousePosition.x * wUnit, mousePosition.y * hUnit);
     ctx.fillStyle = COLORS[1];
@@ -397,6 +419,8 @@ function initMusic() {
       suggestedMelodies = suggestedMelodiesData.map((m) => getListFromEvents(m));
     }
   };
+
+  pushCurrentMelodyIntoHistory();
 }
 function playPianoNote(time = 0, pitch = 55, length = 8, vol = 0.3) {
   // console.log("time", time);
@@ -432,6 +456,31 @@ function updateSuggestions() {
     currentMelody: currentMelodyData,
     inspirationalMelodies: inspirationalMelodiesData,
   });
+}
+function pushCurrentMelodyIntoHistory() {
+  // 1. note change
+  // 2. click on the inspirational interpolations
+  historyMelodies.push({
+    melody: currentMelody,
+    data: currentMelodyData,
+  });
+  historyCurrentIndex = historyMelodies.length - 1;
+  console.log("history", historyMelodies);
+  historyInput.value = 1;
+  historyInput.step = `${1 / (historyMelodies.length - 1)}`;
+  console.log("step value", historyInput.step);
+}
+function retriveMelodyFromHisotry(ratio) {
+  // ratio is in [0, 1]
+
+  const index = Math.round((historyMelodies.length - 1) * ratio);
+  console.log(`get history at [${index}]`);
+  console.log("history", historyMelodies);
+  historyCurrentIndex = index;
+
+  const { melody, data } = historyMelodies[index];
+  currentMelody = melody;
+  currentMelodyData = data;
 }
 
 initCanvas();
