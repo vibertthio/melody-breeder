@@ -141,6 +141,7 @@ canvasContainer.addEventListener("mouseup", (e) => {
   // remove note
   if (hoverNotePosition !== null) {
     const { i, j } = hoverNotePosition;
+    currentMelody = copyMelody(currentMelody);
     currentMelody[i].splice(j, 1);
     currentMelodyData.notes = getEventsFromList(currentMelody);
     mouseDown = false;
@@ -152,7 +153,7 @@ canvasContainer.addEventListener("mouseup", (e) => {
     return;
   }
 
-  // add note
+  // new note
   if (
     mouseDown &&
     mouseDownPosition.x >= 0 &&
@@ -162,8 +163,8 @@ canvasContainer.addEventListener("mouseup", (e) => {
     mousePosition.x >= 0 &&
     mousePosition.x > mouseDownPosition.x &&
     mousePosition.y >= 0 &&
-    mousePosition.x < MELODY_LENGTH &&
-    mousePosition.y < NUM_SHOWN_KEYS
+    mousePosition.x <= MELODY_LENGTH &&
+    mousePosition.y <= NUM_SHOWN_KEYS
   ) {
     // note changed
     currentMelodyData.notes.push({
@@ -278,7 +279,10 @@ function drawMouseIndicator(ctx, wUnit, hUnit) {
     ctx.save();
     ctx.translate(mousePosition.x * wUnit, mousePosition.y * hUnit);
     ctx.fillStyle = COLORS[1];
-    ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, GRID_DOT_SIZE, GRID_DOT_SIZE);
+    // ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, GRID_DOT_SIZE * 2, GRID_DOT_SIZE * 2);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, GRID_DOT_SIZE * (1.5 + 0.1 * Math.sin(Date.now() * 0.01)), 0, 2 * Math.PI);
     ctx.fill();
     ctx.restore();
   }
@@ -286,6 +290,7 @@ function drawMouseIndicator(ctx, wUnit, hUnit) {
     const w = Math.max(0, mousePosition.x - mouseDownPosition.x);
 
     ctx.save();
+    ctx.beginPath();
     ctx.translate(mouseDownPosition.x * wUnit, mouseDownPosition.y * hUnit);
     ctx.fillStyle = COLORS[1];
     ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, wUnit * w, GRID_DOT_SIZE);
@@ -302,9 +307,6 @@ function drawMainMelody(ctx, width, height, melody = currentMelody, showProgress
       ctx.save();
       ctx.translate(c * wUnit, r * hUnit);
       ctx.fillStyle = COLORS[5];
-      // ctx.beginPath();
-      // ctx.arc(0, 0, GRID_DOT_SIZE, 0, 2 * Math.PI);
-
       ctx.fillRect(-GRID_DOT_SIZE * 0.5, -GRID_DOT_SIZE * 0.5, GRID_DOT_SIZE, GRID_DOT_SIZE);
       ctx.fill();
       ctx.restore();
