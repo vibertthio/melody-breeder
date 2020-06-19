@@ -513,7 +513,7 @@ input[type="range"]::-ms-track {
   border-radius: 1rem;
 }
 
-@media only screen and (max-width: 767px) {
+@media only screen and (max-width: 680px) {
   p {
     font-size: 0.7rem;
   }
