@@ -518,9 +518,9 @@ function initMusic() {
     },
     () => {
       console.log("Drum samples loaded");
-      drumPlayers.get("kk").volume.value = -10;
-      drumPlayers.get("sn").volume.value = -10;
-      drumPlayers.get("hh").volume.value = -15;
+      drumPlayers.get("kk").volume.value = 0;
+      drumPlayers.get("sn").volume.value = -2;
+      drumPlayers.get("hh").volume.value = -5;
     }
   ).toMaster();
 
@@ -545,7 +545,7 @@ function initMusic() {
         if (currentMelody[beat]) {
           const notes = currentMelody[beat];
           notes.forEach(({ pitch, noteLength }) => {
-            playSynthNote(time, pitch, noteLength, 0.2);
+            playSynthNote(time, pitch, noteLength, 1.5);
           });
         }
 
