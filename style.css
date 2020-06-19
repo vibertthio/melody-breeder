@@ -48,6 +48,9 @@ h1 {
   /* background-color: rgba(230, 230, 230, 1); */
 }
 #control-container button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   outline: none;
   border: 1.5px solid;
   border-radius: 1rem;
@@ -122,9 +125,6 @@ h1 {
   position: relative;
 }
 #play-btn {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   outline: none;
   border: 2px solid;
   border-radius: 1rem;
@@ -555,15 +555,21 @@ input[type="range"]::-ms-track {
   #more-details-container {
     display: none;
   }
-
-  #control-div {
-    /* min-width: 10rem; */
+  #bpm-div {
+    padding: 0 0.5rem 0 4rem;
+  }
+  #bpm-div p {
+    top: -0.1rem;
+    font-size: 0.6rem;
   }
   #canvases-div {
     width: 100%;
   }
-  /* #control-container button {
-    outline: none;
+  #control-container button {
+    font-size: 0.6rem;
+    width: 2.5rem;
+    min-width: 2rem;
+    /* outline: none;
     display: block;
     border: 1.5px solid;
     border-radius: 0.9rem;
@@ -574,11 +580,6 @@ input[type="range"]::-ms-track {
     margin-bottom: 0.5rem;
     border-color: #373fff;
     color: #373fff;
-    background-color: #fff;
+    background-color: #fff; */
   }
-  #control-container button:hover {
-    border-color: #373fff;
-    color: #373fff;
-    background-color: #fff;
-  } */
 }
