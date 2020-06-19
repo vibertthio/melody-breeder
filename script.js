@@ -22,7 +22,10 @@ const NUM_INSPIRATIONAL_MELODIES = 4;
 const NUM_INTERPOLATIONS = 5;
 let GRID_DOT_SIZE = 4;
 
+const splashPlayButton = document.getElementById("splash-play-btn");
 const playButton = document.getElementById("play-btn");
+const resetButton = document.getElementById("reset-btn");
+const soundButton = document.getElementById("sound-btn");
 const submitButton = document.getElementById("submit-button");
 const resultTextElement = document.getElementById("result-text");
 const canvasContainer = document.getElementById("canvas-container");
@@ -102,7 +105,7 @@ window.addEventListener("resize", () => {
     canvases[i].height = container.clientHeight;
   }
 });
-document.getElementById("splash-play-btn").addEventListener("click", async (e) => {
+splashPlayButton.addEventListener("click", async (e) => {
   if (pianoLoading) {
     return;
   }
@@ -230,6 +233,17 @@ bpmInput.addEventListener("input", (e) => {
   bpmValueSpan.textContent = `${e.target.value}`;
   bpm = e.target.value;
   Tone.Transport.bpm.value = e.target.value;
+});
+soundButton.addEventListener("click", () => {
+  synthPlaying = !synthPlaying;
+  if (synthPlaying) {
+    soundButton.textContent = "piano";
+  } else {
+    soundButton.textContent = "synth";
+  }
+});
+resetButton.addEventListener("click", () => {
+  resetHistory();
 });
 
 // visual
@@ -652,6 +666,9 @@ function retriveMelodyFromHisotry(ratio) {
   const index = Math.round((historyMelodies.length - 1) * ratio);
   // console.log(`get history at [${index}]`);
   // console.log("history", historyMelodies);
+  retriveMelodyFromHisotryByIndex(index);
+}
+function retriveMelodyFromHisotryByIndex(index) {
   historyCurrentIndex = index;
 
   const { melody, data } = historyMelodies[index];
@@ -663,6 +680,17 @@ function retriveMelodyFromHisotry(ratio) {
 function updateHistoryTexts() {
   historyCurrentSpan.textContent = `${historyCurrentIndex}`;
   historyTotalSpan.textContent = `${historyMelodies.length - 1}`;
+}
+function resetHistory() {
+  retriveMelodyFromHisotryByIndex(1);
+  historyMelodies = [
+    {
+      melody: [],
+      data: getPresetMelodies("Empty"),
+    },
+  ];
+  pushCurrentMelodyIntoHistory();
+  updateSuggestions();
 }
 
 initCanvas();
