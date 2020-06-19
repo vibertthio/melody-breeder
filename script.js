@@ -48,13 +48,17 @@ let hoverNotePosition = null;
 const mousePositionOnCanvases = [];
 
 const worker = new Worker("worker.js");
-const { Part, Sequence } = Tone;
-const BPM = 200;
+const { Part, Sequence, Players } = Tone;
+let bpm = 200;
 let part;
 let seq;
 let piano;
+let synth;
+let drumPlayers;
+let synthPlaying = true;
 let currentMelodyData = getPresetMelodies("Twinkle");
 let currentMelody = getListFromEvents(currentMelodyData);
+let cachedCurrentMelody = null;
 let inspirationalMelodiesData = [
   getPresetMelodies("Dense"),
   getPresetMelodies("Arpeggiated"),
@@ -99,6 +103,9 @@ window.addEventListener("resize", () => {
   }
 });
 document.getElementById("splash-play-btn").addEventListener("click", async (e) => {
+  if (pianoLoading) {
+    return;
+  }
   document.getElementById("wrapper").style.visibility = "visible";
   const splash = document.getElementById("splash");
   splash.style.opacity = 0;
@@ -109,7 +116,7 @@ document.getElementById("splash-play-btn").addEventListener("click", async (e) =
     console.log("audioContext.resume");
     audioContext.resume();
   }
-
+  drumPlayers.get("kk").start();
   setup();
   draw();
 });
@@ -158,6 +165,7 @@ canvasContainer.addEventListener("mouseup", (e) => {
     const { i, j } = hoverNotePosition;
     currentMelody = copyMelody(currentMelody);
     currentMelody[i].splice(j, 1);
+    currentMelodyData = getPresetMelodies("Empty");
     currentMelodyData.notes = getEventsFromList(currentMelody);
     mouseDown = false;
     mouseDownPosition.x = -1;
@@ -181,7 +189,7 @@ canvasContainer.addEventListener("mouseup", (e) => {
     mousePosition.x <= MELODY_LENGTH &&
     mousePosition.y <= NUM_SHOWN_KEYS
   ) {
-    // note changed
+    currentMelodyData = copyMelodyData(currentMelodyData);
     currentMelodyData.notes.push({
       pitch: 96 - mouseDownPosition.y,
       quantizedStartStep: mouseDownPosition.x,
@@ -220,6 +228,7 @@ historyInput.addEventListener("change", (e) => {
 });
 bpmInput.addEventListener("input", (e) => {
   bpmValueSpan.textContent = `${e.target.value}`;
+  bpm = e.target.value;
   Tone.Transport.bpm.value = e.target.value;
 });
 
@@ -259,21 +268,28 @@ function initCanvas() {
         }
       }
     });
+    canvases[i].addEventListener("mouseenter", (e) => {
+      // console.log(`mouseenter[${i}]`);
+      cachedCurrentMelody = currentMelody;
+    });
     canvases[i].addEventListener("mouseleave", (e) => {
+      // console.log(`mouseleave[${i}]`);
       const width = canvases[i].width;
       const height = canvases[i].height;
       mousePositionOnCanvases[i].x = width;
       mousePositionOnCanvases[i].y = height;
       hoveredCanvasIndex = -1;
       interpolatedPos = -1;
-      if (interpolatedMelodies[i]) {
-        currentMelody = interpolatedMelodies[i][0];
-      }
+      currentMelody = cachedCurrentMelody;
+      // if (interpolatedMelodies[i]) {
+      //   currentMelody = interpolatedMelodies[i][0];
+      // }
     });
     canvases[i].addEventListener("click", (e) => {
       if (interpolatedPos !== -1) {
         // console.log("data", interpolatedMelodiesData[i]);
         currentMelody = interpolatedMelodies[i][interpolatedPos];
+        cachedCurrentMelody = currentMelody;
         currentMelodyData = interpolatedMelodiesData[i][interpolatedPos];
         updateSuggestions();
         pushCurrentMelodyIntoHistory();
@@ -283,7 +299,7 @@ function initCanvas() {
 }
 function setup() {
   Tone.Transport.start();
-  Tone.Transport.bpm.value = BPM;
+  Tone.Transport.bpm.value = bpm;
 }
 function draw() {
   drawMainCanvas();
@@ -464,27 +480,71 @@ function drawMelody(
   }
 }
 
-// audio
+// audio & magenta
 function initMusic() {
   // sounds
   piano = SampleLibrary.load({
     instruments: "piano",
   });
+
+  synth = new Tone.Synth({
+    envelope: {
+      attack: 0.005,
+      decay: 0.1,
+      sustain: 0.3,
+      release: 0.2,
+    },
+  }).toMaster();
+
+  drumPlayers = new Players(
+    {
+      kk: "./samples/drum/0.wav",
+      sn: "./samples/drum/1.wav",
+      hh: "./samples/drum/2.wav",
+    },
+    () => {
+      console.log("Drum samples loaded");
+      drumPlayers.get("kk").volume.value = -10;
+      drumPlayers.get("sn").volume.value = -10;
+      drumPlayers.get("hh").volume.value = -15;
+    }
+  ).toMaster();
+
   Tone.Buffer.on("load", () => {
     const reverb = new Tone.JCReverb(0.5).toMaster();
     piano.connect(reverb);
     pianoLoading = false;
     document.getElementById("splash-play-btn").classList.add("activated");
-    console.log("Samples loaded");
+    console.log("Piano samples loaded");
   });
 
   seq = new Tone.Sequence(
     (time, beat) => {
-      if (currentMelody[beat]) {
-        const notes = currentMelody[beat];
-        notes.forEach(({ pitch, noteLength }) => {
-          playPianoNote(time, pitch, noteLength, 0.3);
-        });
+      if (!synthPlaying) {
+        if (currentMelody[beat]) {
+          const notes = currentMelody[beat];
+          notes.forEach(({ pitch, noteLength }) => {
+            playPianoNote(time, pitch, noteLength, 0.3);
+          });
+        }
+      } else {
+        if (currentMelody[beat]) {
+          const notes = currentMelody[beat];
+          notes.forEach(({ pitch, noteLength }) => {
+            playSynthNote(time, pitch, noteLength, 0.2);
+          });
+        }
+
+        if (drumPlayers.loaded) {
+          const b = beat % 8;
+          if (b === 0) {
+            drumPlayers.get("kk").start(time);
+          } else if (b === 4) {
+            drumPlayers.get("sn").start(time);
+          } else if (b === 2 || b === 6) {
+            // drumPlayers.get("hh").start(time);
+          }
+        }
       }
     },
     Array(MELODY_LENGTH)
@@ -534,7 +594,10 @@ function playPianoNote(time = 0, pitch = 55, length = 8, vol = 0.3) {
   // console.log("time", time);
   // console.log("play currentTime", audioContext.now());
   // console.log("pitch", pitch);
-  piano.triggerAttackRelease(Tone.Frequency(pitch, "midi"), length * 0.5, time, vol);
+  piano.triggerAttackRelease(midi(pitch), length * 0.5, time, vol);
+}
+function playSynthNote(time = 0, pitch = 55, length = 8, vol = 0.3) {
+  synth.triggerAttackRelease(midi(pitch), sixteenthNoteToDuration(length * 0.5 * 0.5, bpm), time, vol);
 }
 function playMelody(melody) {
   const notes = melody.notes.map((note) => {

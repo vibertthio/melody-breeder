@@ -12,6 +12,10 @@ function toMidi(note) {
   return everyNote.indexOf(note);
 }
 
+function sixteenthNoteToDuration(n, bpm = 60) {
+  return (n * bpm) / 60 / 4;
+}
+
 function midi(m) {
   return Tone.Frequency(m, "midi");
 }
@@ -325,7 +329,6 @@ function getListFromEvents(melody) {
   }
   return list;
 }
-
 function getEventsFromList(list) {
   const notes = [];
   for (let step = 0; step < list.length; step++) {
@@ -344,7 +347,6 @@ function getEventsFromList(list) {
   }
   return notes;
 }
-
 function copyMelody(m) {
   const newMelody = [];
   for (let i = 0; i < m.length; i++) {
@@ -359,6 +361,18 @@ function copyMelody(m) {
     }
   }
   return newMelody;
+}
+function copyNotes(notes) {
+  return notes.map(({ pitch, quantizedStartStep, quantizedEndStep }) => ({
+    pitch,
+    quantizedStartStep,
+    quantizedEndStep,
+  }));
+}
+function copyMelodyData(data) {
+  const newData = getPresetMelodies("Empty");
+  newData.notes = copyNotes(data.notes);
+  return newData;
 }
 
 function addAlpha(color, alpha) {

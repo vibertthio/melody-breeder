@@ -20,7 +20,6 @@ self.onmessage = async ({ data }) => {
   }
 
   if (data.msg === "sample") {
-    console.log("start sampling");
     const scale = 4;
     const { currentMelody, inspirationalMelodies } = data;
 
